@@ -7,31 +7,65 @@
     android:viewportHeight="108">
     <!-- Star Base (Rub El Hizb) -->
     <path
-        android:pathData="M54,28 L62,38 L75,38 L75,51 L85,59 L75,67 L75,80 L62,80 L54,90 L46,80 L33,80 L33,67 L23,59 L33,51 L33,38 L46,38 Z">
+        android:pathData="M54,22 L63,33 L78,33 L78,48 L89,57 L78,66 L78,81 L63,81 L54,92 L45,81 L30,81 L30,66 L19,57 L30,48 L30,33 L45,33 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:endX="75"
-                android:endY="75"
-                android:startX="33"
-                android:startY="33"
+                android:endX="78"
+                android:endY="78"
+                android:startX="30"
+                android:startY="30"
                 android:type="linear">
                 <item
-                    android:color="#FFD700"
+                    android:color="#FFF8DC"
                     android:offset="0.0" />
                 <item
-                    android:color="#C5A059"
+                    android:color="#FFD700"
+                    android:offset="0.5" />
+                <item
+                    android:color="#C59B27"
                     android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Inner Book Silhouette representing Holy Quran -->
+    <!-- Outer Star Gold Border -->
     <path
-        android:fillColor="#073025"
-        android:pathData="M42,50 C42,50 48,53 54,51 C60,53 66,50 66,50 L66,66 C66,66 60,69 54,67 C48,69 42,66 42,66 Z" />
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M54,25 L62,35 L75,35 L75,48 L85,57 L75,66 L75,79 L62,79 L54,89 L46,79 L33,79 L33,66 L23,57 L33,48 L33,35 L46,35 Z" />
+
+    <!-- Open Book Quran Silhouette -->
+    <!-- Left Page -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,52 C44,52 49,54 54,53 C59,54 64,52 64,52 L64,64 C64,64 59,66 54,65 C49,66 44,64 44,64 Z" />
+        android:fillColor="#0D3B2E"
+        android:pathData="M36,46 C36,46 45,49 53,47 L53,71 C45,73 36,70 36,70 Z" />
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M54,53 L54,65" />
+        android:fillColor="#FFFDF5"
+        android:pathData="M38,48 C38,48 45,51 52,49 L52,69 C45,71 38,68 38,68 Z" />
+
+    <!-- Right Page -->
+    <path
+        android:fillColor="#0D3B2E"
+        android:pathData="M72,46 C72,46 63,49 55,47 L55,71 C63,73 72,70 72,70 Z" />
+    <path
+        android:fillColor="#FFFDF5"
+        android:pathData="M70,48 C70,48 63,51 56,49 L56,69 C63,71 70,68 70,68 Z" />
+
+    <!-- Book Spine & Golden Ribbon Bookmark -->
+    <path
+        android:fillColor="#B8860B"
+        android:pathData="M52,47 L56,47 L56,71 L52,71 Z" />
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M53,49 L55,49 L55,75 L53,73 Z" />
+
+    <!-- Page Calligraphy Lines -->
+    <path
+        android:strokeColor="#B8860B"
+        android:strokeWidth="1"
+        android:pathData="M41,53 L49,54 M41,58 L49,59 M41,63 L49,64" />
+    <path
+        android:strokeColor="#B8860B"
+        android:strokeWidth="1"
+        android:pathData="M59,54 L67,53 M59,59 L67,58 M59,64 L67,63" />
 </vector>
+

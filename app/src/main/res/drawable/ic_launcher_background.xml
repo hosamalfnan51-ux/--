@@ -15,19 +15,23 @@
                 android:startY="0"
                 android:type="linear">
                 <item
-                    android:color="#073025"
+                    android:color="#241C0A"
                     android:offset="0.0" />
                 <item
-                    android:color="#0D473A"
+                    android:color="#594311"
+                    android:offset="0.5" />
+                <item
+                    android:color="#87681A"
                     android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Geometric Islamic Star Background Patterns -->
+    <!-- Geometric Golden Islamic Star Background Patterns -->
     <path
-        android:fillColor="#14FFFFFF"
-        android:pathData="M54,18 L64,44 L90,54 L64,64 L54,90 L44,64 L18,54 L44,44 Z" />
+        android:fillColor="#25FFD700"
+        android:pathData="M54,12 L66,42 L96,54 L66,66 L54,96 L42,66 L12,54 L42,42 Z" />
     <path
-        android:fillColor="#0DFFFFFF"
-        android:pathData="M54,28 L60,48 L80,54 L60,60 L54,80 L48,60 L28,54 L48,48 Z" />
+        android:fillColor="#1AFFE082"
+        android:pathData="M54,22 L62,44 L84,54 L62,64 L54,86 L46,64 L24,54 L46,44 Z" />
 </vector>
+

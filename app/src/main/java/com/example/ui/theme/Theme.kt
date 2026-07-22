@@ -8,31 +8,39 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = QuranSecondary,
-    onPrimary = Color(0xFF101917),
-    secondary = QuranPrimaryLight,
-    onSecondary = Color.White,
-    tertiary = QuranTertiary,
-    onTertiary = Color(0xFF101917),
+    primary = QuranGoldTertiary,
+    onPrimary = Color(0xFF18140C),
+    primaryContainer = Color(0xFF382A05),
+    onPrimaryContainer = Color(0xFFFFF0C2),
+    secondary = QuranGoldPrimaryLight,
+    onSecondary = Color(0xFF18140C),
+    secondaryContainer = Color(0xFF13362A),
+    onSecondaryContainer = Color(0xFFD0F0E4),
+    tertiary = QuranEmeraldSecondary,
+    onTertiary = Color.White,
     background = QuranBgDark,
-    onBackground = Color(0xFFFAF6EE),
+    onBackground = Color(0xFFFAF6EA),
     surface = QuranSurfaceDark,
-    onSurface = Color(0xFFFAF6EE),
+    onSurface = Color(0xFFFAF6EA),
     error = TajweedRed,
     onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = QuranPrimary,
+    primary = QuranGoldPrimary,
     onPrimary = Color.White,
-    secondary = QuranSecondary,
+    primaryContainer = QuranGoldContainer,
+    onPrimaryContainer = QuranOnGoldContainer,
+    secondary = QuranEmeraldSecondary,
     onSecondary = Color.White,
-    tertiary = QuranTertiary,
-    onTertiary = Color(0xFF101917),
+    secondaryContainer = QuranEmeraldContainer,
+    onSecondaryContainer = Color(0xFF042D20),
+    tertiary = QuranGoldPrimaryLight,
+    onTertiary = Color.White,
     background = QuranBgLight,
-    onBackground = Color(0xFF1B2321),
+    onBackground = Color(0xFF1C180E),
     surface = QuranSurfaceLight,
-    onSurface = Color(0xFF1B2321),
+    onSurface = Color(0xFF1C180E),
     error = TajweedRed,
     onError = Color.White
 )
@@ -50,3 +58,4 @@ fun MyApplicationTheme(
         content = content
     )
 }
+
