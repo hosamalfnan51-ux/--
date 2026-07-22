@@ -64,6 +64,15 @@ data class SemanticSearchResultItem(
     val relevanceReason: String
 )
 
+// Data model for Bookmark
+data class BookmarkItem(
+    val surahId: Int,
+    val surahName: String,
+    val verseNumber: Int,
+    val textUthmani: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = QuranDatabase.getDatabase(application)
@@ -84,6 +93,8 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     var selectedSurah by mutableStateOf<Surah?>(null)
         private set
 
+    var selectedNarration by mutableStateOf("حفص")
+
     var versesList by mutableStateOf<List<Verse>>(emptyList())
         private set
 
@@ -101,13 +112,24 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private var mediaRecorder: android.media.MediaRecorder? = null
     private var audioFile: java.io.File? = null
 
-    // Narration settings: "حفص", "ورش", "قالون"
-    var selectedNarration by mutableStateOf("حفص")
+    // --- Reciter & Audio Controls State ---
+    var selectedReciter by mutableStateOf("الشيخ مشاري العفاسي")
     var isNightMode by mutableStateOf(false)
 
     // Active playing verse
     var playingVerseId by mutableStateOf<Int?>(null)
     var isAudioPlaying by mutableStateOf(false)
+
+    // --- Bookmarks & Last Read State ---
+    var bookmarksList by mutableStateOf<List<BookmarkItem>>(emptyList())
+    var lastReadBookmark by mutableStateOf<BookmarkItem?>(null)
+    var pendingScrollAyahNumber by mutableStateOf<Int?>(null)
+
+    // --- Hifz Flashcard / Memory Test Mode ---
+    var isTestMemoryModeEnabled by mutableStateOf(false)
+
+    // --- Khatma Duaa State ---
+    var showKhatmaDuaaDialog by mutableStateOf(false)
 
     // --- Chat State ---
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(listOf(
@@ -180,6 +202,60 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- Actions ---
+
+    // --- Bookmark & Navigation Actions ---
+
+    fun toggleBookmark(surahId: Int, surahName: String, verseNumber: Int, textUthmani: String) {
+        val existing = bookmarksList.find { it.surahId == surahId && it.verseNumber == verseNumber }
+        if (existing != null) {
+            bookmarksList = bookmarksList.filter { !(it.surahId == surahId && it.verseNumber == verseNumber) }
+        } else {
+            val item = BookmarkItem(surahId, surahName, verseNumber, textUthmani)
+            bookmarksList = bookmarksList + item
+            lastReadBookmark = item
+        }
+    }
+
+    fun isBookmarked(surahId: Int, verseNumber: Int): Boolean {
+        return bookmarksList.any { it.surahId == surahId && it.verseNumber == verseNumber }
+    }
+
+    fun setLastRead(surahId: Int, surahName: String, verseNumber: Int, textUthmani: String) {
+        lastReadBookmark = BookmarkItem(surahId, surahName, verseNumber, textUthmani)
+    }
+
+    fun jumpToVerseInMushaf(surahId: Int, verseNumber: Int, onNavigateToMushafTab: () -> Unit) {
+        val surah = QuranRepository.offlineChapters.find { it.id == surahId }
+        if (surah != null) {
+            selectSurah(surah)
+            pendingScrollAyahNumber = verseNumber
+            onNavigateToMushafTab()
+        }
+    }
+
+    fun playNextVerse() {
+        val currentList = versesList
+        if (currentList.isEmpty()) return
+        val currentIndex = currentList.indexOfFirst { it.id == playingVerseId }
+        if (currentIndex != -1 && currentIndex + 1 < currentList.size) {
+            val nextVerse = currentList[currentIndex + 1]
+            playingVerseId = nextVerse.id
+            isAudioPlaying = true
+        } else {
+            isAudioPlaying = false
+        }
+    }
+
+    fun playPreviousVerse() {
+        val currentList = versesList
+        if (currentList.isEmpty()) return
+        val currentIndex = currentList.indexOfFirst { it.id == playingVerseId }
+        if (currentIndex > 0) {
+            val prevVerse = currentList[currentIndex - 1]
+            playingVerseId = prevVerse.id
+            isAudioPlaying = true
+        }
+    }
 
     fun selectSurah(surah: Surah) {
         selectedSurah = surah

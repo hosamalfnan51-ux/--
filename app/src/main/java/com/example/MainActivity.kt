@@ -109,6 +109,8 @@ fun MainAppScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     var currentTab by remember { mutableStateOf(0) }
+    var showBookmarksDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     // Navigation and Eye-Care/Night Mode
     val isNightMode = viewModel.isNightMode
@@ -155,14 +157,20 @@ fun MainAppScreen(
                     }
                 },
                 actions = {
-                    // Slogan Display
-                    Text(
-                        text = "منهجُ علمٍ بذكاء العصر",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
+                    IconButton(onClick = { showBookmarksDialog = true }) {
+                        Icon(
+                            imageVector = if (viewModel.bookmarksList.isNotEmpty()) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = "العلامات المرجعية",
+                            tint = if (viewModel.bookmarksList.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    IconButton(onClick = { showSettingsDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "إعدادات القارئ",
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
@@ -228,11 +236,29 @@ fun MainAppScreen(
             ) { targetTab ->
                 when (targetTab) {
                     0 -> MushafScreen(viewModel)
-                    1 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission)
+                    1 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
                     2 -> HifzPlannerScreen(viewModel)
                     3 -> AITafsirChatScreen(viewModel)
                     4 -> KhatmaRoomsScreen(viewModel)
                 }
+            }
+
+            if (showBookmarksDialog) {
+                BookmarksDialog(
+                    viewModel = viewModel,
+                    onDismiss = { showBookmarksDialog = false },
+                    onJumpToVerse = { surahId, verseNumber ->
+                        showBookmarksDialog = false
+                        viewModel.jumpToVerseInMushaf(surahId, verseNumber) { currentTab = 0 }
+                    }
+                )
+            }
+
+            if (showSettingsDialog) {
+                SettingsDialog(
+                    viewModel = viewModel,
+                    onDismiss = { showSettingsDialog = false }
+                )
             }
         }
     }
@@ -265,6 +291,16 @@ fun MushafScreen(viewModel: QuranViewModel) {
 
     LaunchedEffect(activeSurah) {
         selectedAyahNumber = 1
+    }
+
+    LaunchedEffect(viewModel.pendingScrollAyahNumber) {
+        viewModel.pendingScrollAyahNumber?.let { targetAyah ->
+            val surahId = activeSurah?.id ?: 1
+            val scrollIndex = if (surahId != 1 && surahId != 9) targetAyah else targetAyah - 1
+            listState.animateScrollToItem(maxOf(0, scrollIndex))
+            selectedAyahNumber = targetAyah
+            viewModel.pendingScrollAyahNumber = null
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -599,9 +635,11 @@ fun MushafScreen(viewModel: QuranViewModel) {
 
                     items(viewModel.versesList) { verse ->
                         val isPlaying = viewModel.playingVerseId == verse.id && viewModel.isAudioPlaying
+                        val isBookmarked = viewModel.isBookmarked(activeSurah.id, verse.verseNumber)
                         VerseItemCard(
                             verse = verse,
                             isPlaying = isPlaying,
+                            isBookmarked = isBookmarked,
                             onPlayClick = { viewModel.playAudio(verse) },
                             onWordClick = { word ->
                                 selectedWordArabic = word
@@ -614,10 +652,24 @@ fun MushafScreen(viewModel: QuranViewModel) {
                                     verseNumber = verse.verseNumber,
                                     verseText = verse.textUthmani
                                 )
+                            },
+                            onBookmarkClick = {
+                                viewModel.toggleBookmark(
+                                    activeSurah.id,
+                                    activeSurah.nameArabic,
+                                    verse.verseNumber,
+                                    verse.textUthmani
+                                )
                             }
                         )
                     }
                 }
+            }
+
+            // Bottom Audio Player Bar
+            if (viewModel.playingVerseId != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                BottomAudioPlayerBar(viewModel = viewModel, activeSurahName = activeSurah.nameArabic)
             }
         }
     }
@@ -699,9 +751,11 @@ fun MushafScreen(viewModel: QuranViewModel) {
 fun VerseItemCard(
     verse: Verse,
     isPlaying: Boolean,
+    isBookmarked: Boolean = false,
     onPlayClick: () -> Unit,
     onWordClick: (String) -> Unit,
-    onTafsirClick: () -> Unit
+    onTafsirClick: () -> Unit,
+    onBookmarkClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -793,12 +847,21 @@ fun VerseItemCard(
                             modifier = Modifier.size(28.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     IconButton(onClick = onTafsirClick) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "التفسير التفاعلي بالذكاء الاصطناعي",
                             tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(onClick = onBookmarkClick) {
+                        Icon(
+                            imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = "حفظ القراءة",
+                            tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -948,10 +1011,12 @@ fun getWordSemanticDetail(word: String): String {
 @Composable
 fun AIRecitationAndSearchScreen(
     viewModel: QuranViewModel,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    onNavigateToMushaf: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCoachVerseText by remember { mutableStateOf("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ") }
+    var showTajweedLegend by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -1052,7 +1117,14 @@ fun AIRecitationAndSearchScreen(
             }
 
             items(viewModel.semanticSearchResults) { result ->
-                SemanticSearchResultCard(result)
+                SemanticSearchResultCard(
+                    result = result,
+                    onJumpClick = {
+                        viewModel.jumpToVerseInMushaf(result.surahId, result.verseNumber) {
+                            onNavigateToMushaf()
+                        }
+                    }
+                )
             }
         }
 
@@ -1188,7 +1260,10 @@ fun AIRecitationAndSearchScreen(
 }
 
 @Composable
-fun SemanticSearchResultCard(result: SemanticSearchResultItem) {
+fun SemanticSearchResultCard(
+    result: SemanticSearchResultItem,
+    onJumpClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1232,6 +1307,16 @@ fun SemanticSearchResultCard(result: SemanticSearchResultItem) {
                 textAlign = TextAlign.Right,
                 modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onJumpClick,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                modifier = Modifier.align(Alignment.Start)
+            ) {
+                Icon(imageVector = Icons.Default.Book, contentDescription = "قراءة", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "عرض الآية بالمصحف الشريف", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
@@ -1487,6 +1572,27 @@ fun HifzPlannerScreen(viewModel: QuranViewModel) {
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            FilterChip(
+                selected = viewModel.isTestMemoryModeEnabled,
+                onClick = { viewModel.isTestMemoryModeEnabled = !viewModel.isTestMemoryModeEnabled },
+                label = {
+                    Text(
+                        text = if (viewModel.isTestMemoryModeEnabled) "وضع الاختبار (إخفاء الكلمات) 👁️" else "اختبار الحفظ الذاتي 👁️‍🗨️",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (viewModel.isTestMemoryModeEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = "اختبار الحفظ",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -1782,6 +1888,32 @@ fun HifzPlanProgressCard(plan: HifzPlan, viewModel: QuranViewModel) {
                                 }
                                 
                                 Spacer(modifier = Modifier.height(6.dp))
+
+                                if (viewModel.isTestMemoryModeEnabled) {
+                                    var isRevealed by remember { mutableStateOf(false) }
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .background(
+                                                if (isRevealed) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
+                                                RoundedCornerShape(6.dp)
+                                            )
+                                            .clickable { isRevealed = !isRevealed }
+                                            .padding(8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (isRevealed) "الآية $ayahNum من سورة ${plan.surahName}" else "انقر لكشف نص الآية 🙈 ➔ 👁️",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
                                 
                                 // Display evaluation rating buttons
                                 Row(
@@ -2055,7 +2187,22 @@ fun KhatmaRoomsScreen(viewModel: QuranViewModel) {
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { viewModel.showKhatmaDuaaDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+            ) {
+                Icon(imageVector = Icons.Default.MenuBook, contentDescription = "دعاء الختم", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "دعاء ختم القرآن الكريم 🤲", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
+
+            if (viewModel.showKhatmaDuaaDialog) {
+                KhatmaDuaaDialog(onDismiss = { viewModel.showKhatmaDuaaDialog = false })
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (rooms.isEmpty()) {
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -2310,6 +2457,384 @@ fun KhatmaRoomCard(room: KhatmaRoom, onViewGridClick: () -> Unit) {
                 Icon(imageVector = Icons.Default.GridOn, contentDescription = "الأجزاء", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = "عرض تقسيم الأجزاء والمشاركة")
+            }
+        }
+    }
+}
+
+// ==========================================
+// HELPER DIALOGS & COMPONENTS
+// ==========================================
+@Composable
+fun BookmarksDialog(
+    viewModel: QuranViewModel,
+    onDismiss: () -> Unit,
+    onJumpToVerse: (Int, Int) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "العلامات المرجعية وآخر قراءة",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Last Read Banner
+                val lastRead = viewModel.lastReadBookmark
+                if (lastRead != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "موضع آخر قراءة 📌",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "سورة ${lastRead.surahName} - آية ${lastRead.verseNumber}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = lastRead.textUthmani,
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily.Serif,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = { onJumpToVerse(lastRead.surahId, lastRead.verseNumber) },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(36.dp)
+                            ) {
+                                Text("الانتقال لآخر قراءة", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                Text(
+                    text = "قائمة الآيات المحفوظة (${viewModel.bookmarksList.size})",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.align(Alignment.End)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (viewModel.bookmarksList.isEmpty()) {
+                    Text(
+                        text = "لا توجد علامات مرجعية محفوظة حالياً. انقر على أيقونة العلامة المرجعية بجانب أي آية لحفظها.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(viewModel.bookmarksList) { item ->
+                            Card(
+                                onClick = { onJumpToVerse(item.surahId, item.verseNumber) },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { viewModel.toggleBookmark(item.surahId, item.surahName, item.verseNumber, item.textUthmani) }
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "حذف", tint = TajweedRed)
+                                    }
+
+                                    Column(
+                                        horizontalAlignment = Alignment.End,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = "${item.surahName} • آية ${item.verseNumber}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = item.textUthmani,
+                                            fontSize = 13.sp,
+                                            fontFamily = FontFamily.Serif,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("إغلاق")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsDialog(
+    viewModel: QuranViewModel,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "إعدادات القراءة والإنصات",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "اختر القارئ المفضل للإنصات والتكرار:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.align(Alignment.End)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val reciters = listOf(
+                    "الشيخ مشاري العفاسي",
+                    "الشيخ محمود خليل الحصري",
+                    "الشيخ عبد الباسط عبد الصمد",
+                    "الشيخ محمد صديق المنشاوي"
+                )
+
+                reciters.forEach { reciter ->
+                    val isSelected = viewModel.selectedReciter == reciter
+                    Card(
+                        onClick = { viewModel.selectedReciter = reciter },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ),
+                        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isSelected) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = "محدد", tint = MaterialTheme.colorScheme.primary)
+                            } else {
+                                Spacer(modifier = Modifier.width(24.dp))
+                            }
+                            Text(
+                                text = reciter,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("حفظ وإغلاق")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BottomAudioPlayerBar(
+    viewModel: QuranViewModel,
+    activeSurahName: String
+) {
+    val currentVerseId = viewModel.playingVerseId ?: return
+    val currentVerse = viewModel.versesList.find { it.id == currentVerseId } ?: return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { viewModel.playPreviousVerse() }) {
+                    Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "الآية السابقة", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+                IconButton(
+                    onClick = { viewModel.isAudioPlaying = !viewModel.isAudioPlaying },
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "تشغيل/إيقاف",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                IconButton(onClick = { viewModel.playNextVerse() }) {
+                    Icon(imageVector = Icons.Default.SkipNext, contentDescription = "الآية التالية", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${viewModel.selectedReciter} • $activeSurahName (آية ${currentVerse.verseNumber})",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = currentVerse.textUthmani,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Serif,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun KhatmaDuaaDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f)
+                .padding(4.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "دعاء ختم القرآن الكريم المبارك",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "صَدَقَ اللهُ العَظِيمُ الَّذِي لاَ إِلَهَ إِلاَّ هُوَ الحَيُّ القَيُّومُ..\n\n" +
+                                "اللَّهُمَّ ارْحَمْنِي بِالقُرْآنِ وَاجْعَلْهُ لِي إِمَاماً وَنُوراً وَهُدًى وَرَحْمَةً..\n\n" +
+                                "اللَّهُمَّ ذَكِّرْنِي مِنْهُ مَا نَسِيتُ وَعَلِّمْنِي مِنْهُ مَا جَهِلْتُ وَارْزُقْنِي تِلاَوَتَهُ آنَاءَ اللَّيْلِ وَأَطْرَافَ النَّهَارِ وَاجْعَلْهُ لِي حُجَّةً يَا رَبَّ العَالَمِينَ..\n\n" +
+                                "اللَّهُمَّ أَصْلِحْ لِي دِينِي الَّذِي هُوَ عِصْمَةُ أَمْرِي، وَأَصْلِحْ لِي دُنْيَايَ الَّتِي فِيهَا مَعَاشِي، وَأَصْلِحْ لِي آخِرَتِي الَّتِي فِيهَا مَعَادِي، وَاجْعَلِ الحَيَاةَ زِيَادَةً لِي فِي كُلِّ خَيْرٍ وَاجْعَلِ المَوْتَ رَاحَةً لِي مِنْ كُلِّ شَرٍّ..\n\n" +
+                                "اللَّهُمَّ اجْعَلْ خَيْرَ عُمْرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِمَهُ وَخَيْرَ أَيَّامِي يَوْمَ أَلْقَاكَ فِيهِ.. آمين يا رب العالمين.",
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Serif,
+                        lineHeight = 24.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("تقبل الله منا ومنكم")
+                }
             }
         }
     }
