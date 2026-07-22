@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -44,6 +45,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.TextStyle
 import com.example.data.repository.Hadith
 import com.example.data.repository.HadithRepository
+import com.example.data.repository.AdhkarRepository
+import com.example.data.repository.DhikrItem
+import com.example.data.repository.DuaRepository
+import com.example.data.repository.DuaItem
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -162,6 +167,36 @@ fun MainAppScreen(
                     }
                 },
                 actions = {
+                    // Language Switcher Button (تبديل اللغة بسهولة بلمسة واحدة)
+                    FilterChip(
+                        selected = viewModel.isEnglishLanguage,
+                        onClick = { viewModel.isEnglishLanguage = !viewModel.isEnglishLanguage },
+                        label = {
+                            Text(
+                                text = if (viewModel.isEnglishLanguage) "العربية 🌐" else "EN 🌐",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            labelColor = MaterialTheme.colorScheme.primary
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+
+                    // About App Button (حول التطبيق)
+                    IconButton(onClick = { viewModel.showAboutDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "حول التطبيق",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     IconButton(onClick = { showBookmarksDialog = true }) {
                         Icon(
                             imageVector = if (viewModel.bookmarksList.isNotEmpty()) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
@@ -183,47 +218,64 @@ fun MainAppScreen(
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp,
-                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-            ) {
-                val tabs = listOf(
-                    NavigationItem("المصحف", Icons.Default.Book, Icons.Outlined.Book),
-                    NavigationItem("الأحاديث", Icons.Default.MenuBook, Icons.Outlined.MenuBook),
-                    NavigationItem("معلم التلاوة", Icons.Default.Mic, Icons.Outlined.Mic),
-                    NavigationItem("مدرب الحفظ", Icons.Default.Alarm, Icons.Outlined.Alarm),
-                    NavigationItem("التدبر الذكي", Icons.Default.QuestionAnswer, Icons.Outlined.QuestionAnswer),
-                    NavigationItem("الختمات", Icons.Default.Groups, Icons.Outlined.Groups)
-                )
+            val isEng = viewModel.isEnglishLanguage
+            val tabs = listOf(
+                NavigationItem(if (isEng) "Quran" else "المصحف", Icons.Default.Book, Icons.Outlined.Book),
+                NavigationItem(if (isEng) "Adhkar" else "الأذكار", Icons.Default.VolunteerActivism, Icons.Outlined.VolunteerActivism),
+                NavigationItem(if (isEng) "Duas" else "الأدعية", Icons.Default.Favorite, Icons.Outlined.FavoriteBorder),
+                NavigationItem(if (isEng) "Hadith" else "الأحاديث", Icons.Default.MenuBook, Icons.Outlined.MenuBook),
+                NavigationItem(if (isEng) "Recitation" else "معلم التلاوة", Icons.Default.Mic, Icons.Outlined.Mic),
+                NavigationItem(if (isEng) "Hifz Planner" else "مدرب الحفظ", Icons.Default.Alarm, Icons.Outlined.Alarm),
+                NavigationItem(if (isEng) "AI Tafsir" else "التدبر الذكي", Icons.Default.QuestionAnswer, Icons.Outlined.QuestionAnswer),
+                NavigationItem(if (isEng) "Khatma Rooms" else "الختمات", Icons.Default.Groups, Icons.Outlined.Groups)
+            )
 
-                tabs.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        selected = currentTab == index,
-                        onClick = { currentTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = if (currentTab == index) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.title
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = tab.title,
-                                fontSize = 10.sp,
-                                fontWeight = if (currentTab == index) FontWeight.Bold else FontWeight.Normal,
-                                maxLines = 1
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.secondary,
-                            unselectedTextColor = MaterialTheme.colorScheme.secondary
-                        ),
-                        modifier = Modifier.testTag("tab_button_$index")
-                    )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 6.dp, horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        val isSelected = currentTab == index
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { currentTab = index },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.title,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = tab.title,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = null,
+                            modifier = Modifier.testTag("tab_button_$index")
+                        )
+                    }
                 }
             }
         }
@@ -243,12 +295,18 @@ fun MainAppScreen(
             ) { targetTab ->
                 when (targetTab) {
                     0 -> MushafScreen(viewModel)
-                    1 -> HadithScreen(viewModel)
-                    2 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
-                    3 -> HifzPlannerScreen(viewModel)
-                    4 -> AITafsirChatScreen(viewModel)
-                    5 -> KhatmaRoomsScreen(viewModel)
+                    1 -> AdhkarScreen(viewModel)
+                    2 -> DuaScreen(viewModel)
+                    3 -> HadithScreen(viewModel)
+                    4 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
+                    5 -> HifzPlannerScreen(viewModel)
+                    6 -> AITafsirChatScreen(viewModel)
+                    7 -> KhatmaRoomsScreen(viewModel)
                 }
+            }
+
+            if (viewModel.showAboutDialog) {
+                AboutAppDialog(onDismiss = { viewModel.showAboutDialog = false })
             }
 
             if (showBookmarksDialog) {
@@ -977,6 +1035,21 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                         textAlign = TextAlign.Right,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            val surahName = viewModel.selectedSurah?.nameArabic ?: ""
+                            viewModel.getAITafsirForAyah(surahName, verse.verseNumber, verse.textUthmani)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                    ) {
+                        Icon(imageVector = Icons.Default.Refresh, contentDescription = "إعادة التوليد", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "تحديث / إعادة المحاولة بالذكاء الاصطناعي 🔄", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -3158,6 +3231,733 @@ fun HadithItemCard(
                             modifier = Modifier.size(22.dp)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// قسم الأذكار الشامل (حصن المسلم)
+// ==========================================
+@Composable
+fun AdhkarScreen(viewModel: QuranViewModel) {
+    val context = LocalContext.current
+    val categories = AdhkarRepository.categories
+    val isEnglish = viewModel.isEnglishLanguage
+
+    // Filtering logic
+    val filteredAdhkar = remember(
+        viewModel.selectedAdhkarCategory,
+        viewModel.adhkarSearchQuery
+    ) {
+        AdhkarRepository.adhkarList.filter { dhikr ->
+            val matchCategory = viewModel.selectedAdhkarCategory == "الكل" || dhikr.category == viewModel.selectedAdhkarCategory
+            val matchQuery = viewModel.adhkarSearchQuery.isEmpty() ||
+                    dhikr.text.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
+                    dhikr.rewardOrVirtue.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
+                    dhikr.reference.contains(viewModel.adhkarSearchQuery, ignoreCase = true)
+            matchCategory && matchQuery
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Top Banner Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isEnglish) "Fortress of the Muslim • Adhkar 📿" else "حصن المسلم - موسوعة الأذكار 📿",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isEnglish) "Morning, Evening, Prayer, Mosque, Home, Sleep & Daily Protection Adhkar with interactive counter"
+                        else "أذكار الصباح والمساء، قبل وبعد الصلاة، المسجد، المنزل، النوم، الطعام والسفر مع عداد إلكتروني تفاعلي",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.VolunteerActivism,
+                    contentDescription = "Adhkar Icon",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Search Field
+        OutlinedTextField(
+            value = viewModel.adhkarSearchQuery,
+            onValueChange = { viewModel.adhkarSearchQuery = it },
+            placeholder = { Text(if (isEnglish) "Search Adhkar text or virtues..." else "ابحث في نص الذكر، الفضل، أو المناسبة...", fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            trailingIcon = {
+                if (viewModel.adhkarSearchQuery.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.adhkarSearchQuery = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Horizontal Category Chips
+        Text(
+            text = if (isEnglish) "Select Category:" else "اختر القسم الفقهي للأذكار:",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categories) { category ->
+                val isSelected = viewModel.selectedAdhkarCategory == category
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { viewModel.selectedAdhkarCategory = category },
+                    label = { Text(category, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = if (isEnglish) "Displayed Adhkar (${filteredAdhkar.size})" else "الأذكار المعروضة (${filteredAdhkar.size})",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.secondary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (filteredAdhkar.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isEnglish) "No Adhkar found for current search query." else "لم يتم العثور على أذكار تطابق كلمة البحث الحالية.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(filteredAdhkar, key = { it.id }) { dhikr ->
+                    DhikrItemCard(
+                        dhikr = dhikr,
+                        viewModel = viewModel,
+                        onCopyClick = {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Dhikr", "${dhikr.text}\n(${dhikr.rewardOrVirtue})\nالمصدر: ${dhikr.reference}")
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "تم نسخ الذكر الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DhikrItemCard(
+    dhikr: DhikrItem,
+    viewModel: QuranViewModel,
+    onCopyClick: () -> Unit
+) {
+    val remainingCount = viewModel.getDhikrRemainingCount(dhikr.id, dhikr.count)
+    val isCompleted = remainingCount == 0
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(
+            1.dp,
+            if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Category Badge & Reference
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "📌 ${dhikr.category}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+
+                Text(
+                    text = dhikr.reference,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    maxLines = 1
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Dhikr Main Text
+            Text(
+                text = dhikr.text,
+                fontSize = 17.sp,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 28.sp,
+                textAlign = TextAlign.Start,
+                style = TextStyle(textDirection = TextDirection.ContentOrRtl),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Virtue / Reward Card
+            if (dhikr.rewardOrVirtue.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lightbulb,
+                            contentDescription = "الفضل",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = dhikr.rewardOrVirtue,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            lineHeight = 17.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Interactive Counter & Action Buttons Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onCopyClick) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "نسخ الذكر",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (remainingCount < dhikr.count) {
+                        TextButton(onClick = { viewModel.resetDhikrCount(dhikr.id, dhikr.count) }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "إعادة", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text("إعادة", fontSize = 11.sp)
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    // Main Counter Button
+                    Button(
+                        onClick = { viewModel.decrementDhikrCount(dhikr.id, dhikr.count) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = if (isCompleted) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isCompleted) {
+                            Icon(Icons.Default.Check, contentDescription = "مكتمل", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "تم بحمد الله ✨", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Text(
+                                text = "التكرار المتبقي: $remainingCount / ${dhikr.count}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// قسم الأدعية الشاملة (القرآن والسنة)
+// ==========================================
+@Composable
+fun DuaScreen(viewModel: QuranViewModel) {
+    val context = LocalContext.current
+    val categories = DuaRepository.categories
+    val isEnglish = viewModel.isEnglishLanguage
+
+    // Filtering logic
+    val filteredDuas = remember(
+        viewModel.selectedDuaCategory,
+        viewModel.duaSearchQuery
+    ) {
+        DuaRepository.duaList.filter { dua ->
+            val matchCategory = viewModel.selectedDuaCategory == "الكل" || dua.category == viewModel.selectedDuaCategory
+            val matchQuery = viewModel.duaSearchQuery.isEmpty() ||
+                    dua.title.contains(viewModel.duaSearchQuery, ignoreCase = true) ||
+                    dua.text.contains(viewModel.duaSearchQuery, ignoreCase = true) ||
+                    dua.reference.contains(viewModel.duaSearchQuery, ignoreCase = true)
+            matchCategory && matchQuery
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Top Banner Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isEnglish) "Comprehensive Duas & Supplications 🤲" else "موسوعة الأدعية القرآنية والنبوية 🤲",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isEnglish) "Complete authentic supplications from the Holy Quran, Prophet's Sunnah, and comprehensive prayers"
+                        else "جميع الأدعية المباركة التي وردت في القرآن الكريم والسنة النبوية الشريفة وأدعية الشفاء والرزق والفرج",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = "Dua Icon",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Search Field
+        OutlinedTextField(
+            value = viewModel.duaSearchQuery,
+            onValueChange = { viewModel.duaSearchQuery = it },
+            placeholder = { Text(if (isEnglish) "Search Duas by subject, text or source..." else "ابحث في عنوان الدعاء، النص، أو المصدر...", fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            trailingIcon = {
+                if (viewModel.duaSearchQuery.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.duaSearchQuery = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Horizontal Category Chips
+        Text(
+            text = if (isEnglish) "Select Category:" else "اختر تصنيف الدعاء:",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categories) { category ->
+                val isSelected = viewModel.selectedDuaCategory == category
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { viewModel.selectedDuaCategory = category },
+                    label = { Text(category, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = if (isEnglish) "Displayed Supplications (${filteredDuas.size})" else "الأدعية المعروضة (${filteredDuas.size})",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.secondary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (filteredDuas.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isEnglish) "No supplications found for current search." else "لم يتم العثور على أدعية تطابق كلمة البحث الحالية.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(filteredDuas, key = { it.id }) { dua ->
+                    DuaItemCard(
+                        dua = dua,
+                        isEnglish = isEnglish,
+                        onCopyClick = {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Dua", "${dua.title}\n${dua.text}\nالمصدر: ${dua.reference}")
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "تم نسخ الدعاء الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DuaItemCard(
+    dua: DuaItem,
+    isEnglish: Boolean,
+    onCopyClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Header: Category & Reference
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "📖 ${dua.title}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+
+                Text(
+                    text = dua.reference,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Main Dua Text
+            Text(
+                text = dua.text,
+                fontSize = 18.sp,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 30.sp,
+                textAlign = TextAlign.Start,
+                style = TextStyle(textDirection = TextDirection.ContentOrRtl),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // English Translation if available or English mode
+            if (dua.translationEnglish.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = dua.translationEnglish,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    lineHeight = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onCopyClick) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "نسخ الدعاء",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// نافذة حول التطبيق والمعلومات الإيمانية
+// ==========================================
+@Composable
+fun AboutAppDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header Emblem Icon
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Book,
+                        contentDescription = "QuranWay",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "طريق القرآن • QuranWay",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "تطبيق إسلامي كامل وشامل للقرآن الكريم والأذكار والأدعية",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Creator & Founder Info
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Person, contentDescription = "المؤسس", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "مؤسس وصانع التطبيق بواسطة:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "حسام حسين أحمد توفيق",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Phone, contentDescription = "التواصل", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "للتواصل:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "01015059150",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Dedication & Dua Text
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "دعاء وإهداء التطبيق 🤲",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "اسأل الله العظيم رب العرش العظيم أن يجعل هذا العمل خالص لوجهه الكريم وأن يجعله نافعًا للجميع وأن يجعله في ميزان حسناتي\n\n" +
+                                    "اللهم صلي وسلم وبارك على سيدنا محمد وعلى آله وصحبه وسلم تسليما كثيرا طيبا مباركا فيه\n\n" +
+                                    "اللهم ارحم أمواتنا وأموات المسلمين اجمعين\n\n" +
+                                    "هذا التطبيق صدقه جاريه علي كل من أحب .",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("إغلاق Window", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

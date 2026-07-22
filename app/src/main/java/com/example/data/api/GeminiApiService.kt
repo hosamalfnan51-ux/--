@@ -7,6 +7,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
@@ -53,8 +54,9 @@ data class GeminiResponse(
 )
 
 interface GeminiApiService {
-    @POST("v1beta/models/gemini-3.5-flash:generateContent")
+    @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
+        @Path("model") model: String,
         @Query("key") apiKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
@@ -64,9 +66,9 @@ object GeminiRetrofitClient {
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     val service: GeminiApiService by lazy {
@@ -76,5 +78,18 @@ object GeminiRetrofitClient {
             .addConverterFactory(MoshiConverterFactory.create())
             .build()
         retrofit.create(GeminiApiService::class.java)
+    }
+
+    suspend fun generateContentWithFallback(apiKey: String, request: GeminiRequest): GeminiResponse {
+        val models = listOf("gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash")
+        var lastException: Exception? = null
+        for (model in models) {
+            try {
+                return service.generateContent(model, apiKey, request)
+            } catch (e: Exception) {
+                lastException = e
+            }
+        }
+        throw lastException ?: Exception("Server unavailable (503)")
     }
 }
