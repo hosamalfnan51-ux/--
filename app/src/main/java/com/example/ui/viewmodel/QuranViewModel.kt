@@ -18,6 +18,8 @@ import com.example.data.model.HifzProgress
 import com.example.data.model.KhatmaRoom
 import com.example.data.model.Surah
 import com.example.data.model.Verse
+import com.example.data.repository.Hadith
+import com.example.data.repository.HadithRepository
 import com.example.data.repository.QuranRepository
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -130,6 +132,32 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- Khatma Duaa State ---
     var showKhatmaDuaaDialog by mutableStateOf(false)
+
+    // --- Hadith Section State ---
+    var selectedHadithChapter by mutableStateOf("الكل")
+    var hadithSearchQuery by mutableStateOf("")
+    var favoriteHadithIds by mutableStateOf<Set<Int>>(emptySet())
+
+    val filteredHadiths: List<Hadith>
+        get() {
+            val all = HadithRepository.hadithsList
+            return all.filter { hadith ->
+                val matchesChapter = (selectedHadithChapter == "الكل") || (hadith.chapter == selectedHadithChapter)
+                val matchesQuery = hadithSearchQuery.isBlank() ||
+                        hadith.text.contains(hadithSearchQuery, ignoreCase = true) ||
+                        hadith.narrator.contains(hadithSearchQuery, ignoreCase = true) ||
+                        hadith.explanation.contains(hadithSearchQuery, ignoreCase = true)
+                matchesChapter && matchesQuery
+            }
+        }
+
+    fun toggleHadithFavorite(id: Int) {
+        favoriteHadithIds = if (favoriteHadithIds.contains(id)) {
+            favoriteHadithIds - id
+        } else {
+            favoriteHadithIds + id
+        }
+    }
 
     // --- Chat State ---
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(listOf(

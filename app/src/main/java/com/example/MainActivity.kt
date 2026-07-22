@@ -39,6 +39,11 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.TextStyle
+import com.example.data.repository.Hadith
+import com.example.data.repository.HadithRepository
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -185,6 +190,7 @@ fun MainAppScreen(
             ) {
                 val tabs = listOf(
                     NavigationItem("المصحف", Icons.Default.Book, Icons.Outlined.Book),
+                    NavigationItem("الأحاديث", Icons.Default.MenuBook, Icons.Outlined.MenuBook),
                     NavigationItem("معلم التلاوة", Icons.Default.Mic, Icons.Outlined.Mic),
                     NavigationItem("مدرب الحفظ", Icons.Default.Alarm, Icons.Outlined.Alarm),
                     NavigationItem("التدبر الذكي", Icons.Default.QuestionAnswer, Icons.Outlined.QuestionAnswer),
@@ -204,8 +210,9 @@ fun MainAppScreen(
                         label = {
                             Text(
                                 text = tab.title,
-                                fontSize = 11.sp,
-                                fontWeight = if (currentTab == index) FontWeight.Bold else FontWeight.Normal
+                                fontSize = 10.sp,
+                                fontWeight = if (currentTab == index) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
@@ -236,10 +243,11 @@ fun MainAppScreen(
             ) { targetTab ->
                 when (targetTab) {
                     0 -> MushafScreen(viewModel)
-                    1 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
-                    2 -> HifzPlannerScreen(viewModel)
-                    3 -> AITafsirChatScreen(viewModel)
-                    4 -> KhatmaRoomsScreen(viewModel)
+                    1 -> HadithScreen(viewModel)
+                    2 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
+                    3 -> HifzPlannerScreen(viewModel)
+                    4 -> AITafsirChatScreen(viewModel)
+                    5 -> KhatmaRoomsScreen(viewModel)
                 }
             }
 
@@ -770,56 +778,62 @@ fun VerseItemCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Verse Word-by-Word flow layout representation
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                val words = verse.textUthmani.split(" ")
-                words.forEach { word ->
+            // Main Authentic Continuous Uthmani Verse Text with End Ornament
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = word,
+                        text = "${verse.textUthmani} ﴿${verse.verseNumber}﴾",
                         fontSize = 22.sp,
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                            .clickable { onWordClick(word) }
-                            .drawBehind {
-                                // Subtle bottom underline on hover/touch
-                                val strokeWidth = 1.dp.toPx()
-                                val y = size.height - strokeWidth
-                                drawLine(
-                                    color = Color(0xFFC5A059).copy(alpha = 0.3f),
-                                    start = Offset(0f, y),
-                                    end = Offset(size.width, y),
-                                    strokeWidth = strokeWidth
+                        textAlign = TextAlign.Start,
+                        style = TextStyle(textDirection = TextDirection.ContentOrRtl),
+                        lineHeight = 40.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Interactive Word Analysis Chips (In Native RTL)
+                    Text(
+                        text = "مفردات الآية الكريمة (انقر للتفسير والتدبر):",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        val words = verse.textUthmani.split(" ")
+                        words.forEach { word ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 6.dp, bottom = 6.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                    .border(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                    .clickable { onWordClick(word) }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = word,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Serif,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
-                    )
-                }
-
-                // Ayah end symbol decorator
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 6.dp)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = verse.verseNumber.toString(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        }
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Translation
             Text(
@@ -869,9 +883,9 @@ fun VerseItemCard(
 
                 Text(
                     text = "آية ${verse.verseNumber}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -2834,6 +2848,316 @@ fun KhatmaDuaaDialog(onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("تقبل الله منا ومنكم")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HadithScreen(viewModel: QuranViewModel) {
+    val context = LocalContext.current
+    val chapters = HadithRepository.chapters
+    val filteredList = viewModel.filteredHadiths
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Top Banner Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "قسم الأحاديث النبوية الصحيحة 📖",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "موسوعة ٥٠٠ حديث شريف صحيح مقسمة على الأبواب الفقهية والتربوية مع الشرح والفوائد",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.MenuBook,
+                    contentDescription = "Hadith Icon",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Search Bar
+        OutlinedTextField(
+            value = viewModel.hadithSearchQuery,
+            onValueChange = { viewModel.hadithSearchQuery = it },
+            placeholder = { Text("ابحث في نص الحديث، الراوي، أو الشرح...", fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث") },
+            trailingIcon = {
+                if (viewModel.hadithSearchQuery.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.hadithSearchQuery = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "مسح")
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Horizontal Category / Chapter Filter Chips
+        Text(text = "اختر الباب الفقهي / الموضوع:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(6.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(chapters) { chapter ->
+                val isSelected = viewModel.selectedHadithChapter == chapter
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { viewModel.selectedHadithChapter = chapter },
+                    label = { Text(chapter, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "الأحاديث المعروضة (${filteredList.size})",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            if (viewModel.favoriteHadithIds.isNotEmpty()) {
+                Text(
+                    text = "❤️ المفضلة: ${viewModel.favoriteHadithIds.size}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (filteredList.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "لم يتم العثور على أحاديث تطابق كلمة البحث الحالية.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(filteredList, key = { it.id }) { hadith ->
+                    val isFavorite = viewModel.favoriteHadithIds.contains(hadith.id)
+                    HadithItemCard(
+                        hadith = hadith,
+                        isFavorite = isFavorite,
+                        onFavoriteClick = { viewModel.toggleHadithFavorite(hadith.id) },
+                        onCopyClick = {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Hadith", "${hadith.text}\n(${hadith.narrator})\nالمصدر: ${hadith.chapter}")
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "تم نسخ الحديث الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HadithItemCard(
+    hadith: Hadith,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
+    onCopyClick: () -> Unit
+) {
+    var showExplanation by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Chapter Header Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "📌 ${hadith.chapter}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+
+                Text(
+                    text = "حديث #${hadith.id}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Hadith Text
+            Text(
+                text = "« ${hadith.text} »",
+                fontSize = 17.sp,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 28.sp,
+                textAlign = TextAlign.Start,
+                style = TextStyle(textDirection = TextDirection.ContentOrRtl),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Narrator Tag
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "صحيح",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "التخريج والدرجة: ${hadith.narrator}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            if (showExplanation) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "💡 الفائدة وشرح الحديث الشريف:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = hadith.explanation,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { showExplanation = !showExplanation }) {
+                    Icon(
+                        imageVector = if (showExplanation) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = "شرح",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (showExplanation) "إخفاء الشرح" else "الشرح والفوائد 💡",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onCopyClick) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "نسخ الحديث",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(onClick = onFavoriteClick) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "المفضلة",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }
