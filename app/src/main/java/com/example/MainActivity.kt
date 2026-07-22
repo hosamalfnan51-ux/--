@@ -2952,7 +2952,7 @@ fun HadithScreen(viewModel: QuranViewModel) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "موسوعة ٥٠٠ حديث شريف صحيح مقسمة على الأبواب الفقهية والتربوية مع الشرح والفوائد",
+                        text = if (viewModel.isEnglishLanguage) "Encyclopedia of 1000 Authentic Sahih Hadiths with explanations" else "موسوعة 1000 حديث صحيح شريف مقسمة على الأبواب الفقهية والتربوية مع الشرح والفوائد",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                         lineHeight = 18.sp
