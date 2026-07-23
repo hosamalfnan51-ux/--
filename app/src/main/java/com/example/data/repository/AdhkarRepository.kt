@@ -6,7 +6,10 @@ data class DhikrItem(
     val count: Int, // e.g. 3 times, 100 times, 1 time
     val category: String, // "أذكار الصباح", "أذكار المساء", "أذكار قبل الصلاة", "أذكار بعد الصلاة", "دخول وخروج المسجد", "دخول وخروج المنزل", "أذكار النوم والاستيقاظ", "الطعام والسفر والوقاية"
     val rewardOrVirtue: String,
-    val reference: String
+    val reference: String,
+    val textEnglish: String = "",
+    val rewardOrVirtueEnglish: String = "",
+    val referenceEnglish: String = ""
 )
 
 object AdhkarRepository {
@@ -22,6 +25,23 @@ object AdhkarRepository {
         "أذكار النوم والاستيقاظ",
         "الطعام والسفر والوقاية"
     )
+
+    val categoriesEnglish = listOf(
+        "All",
+        "Morning Adhkar",
+        "Evening Adhkar",
+        "Before Prayer",
+        "After Prayer",
+        "Mosque Adhkar",
+        "Home Adhkar",
+        "Sleep & Waking",
+        "Food, Travel & Protection"
+    )
+
+    fun getCategoryEnglish(arabicCategory: String): String {
+        val idx = categories.indexOf(arabicCategory)
+        return if (idx >= 0 && idx < categoriesEnglish.size) categoriesEnglish[idx] else arabicCategory
+    }
 
     val adhkarList = listOf(
         // === أذكار الصباح ===

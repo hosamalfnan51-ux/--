@@ -6,7 +6,10 @@ data class DuaItem(
     val text: String,
     val category: String, // "أدعية من القرآن الكريم", "أدعية من السنة النبوية", "أدعية جامعة وشاملة"
     val reference: String,
-    val translationEnglish: String = ""
+    val translationEnglish: String = "",
+    val titleEnglish: String = "",
+    val categoryEnglish: String = "",
+    val referenceEnglish: String = ""
 )
 
 object DuaRepository {
@@ -17,6 +20,18 @@ object DuaRepository {
         "أدعية من السنة النبوية",
         "أدعية جامعة وشاملة"
     )
+
+    val categoriesEnglish = listOf(
+        "All",
+        "Quranic Supplications",
+        "Prophetic Supplications",
+        "Comprehensive Supplications"
+    )
+
+    fun getCategoryEnglish(arabicCategory: String): String {
+        val idx = categories.indexOf(arabicCategory)
+        return if (idx >= 0 && idx < categoriesEnglish.size) categoriesEnglish[idx] else arabicCategory
+    }
 
     val duaList = listOf(
         // === أدعية من القرآن الكريم ===

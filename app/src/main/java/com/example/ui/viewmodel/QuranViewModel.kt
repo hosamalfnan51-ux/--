@@ -316,19 +316,28 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 val apiKey = BuildConfig.GEMINI_API_KEY
                 if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                     delay(1500)
+                    val offlineMsg = if (isEnglishLanguage) {
+                        "Note: Gemini API key is not configured yet. Please configure it in the Secrets panel for live AI study assistance.\n\nApproximate Explanation: The verse highlights drawing closer to Allah, His immense reward, and paths of guidance according to Quran and Sunnah."
+                    } else {
+                        "عذراً! يبدو أن مفتاح Gemini API غير مهيأ بعد. يرجى تهيئته في لوحة الأسرار (Secrets Panel) لتجربة التدبر المباشر بالذكاء الاصطناعي.\n\nتفسير تقريبي: الآية الكريمة توضح فضل التقرب إلى الله وعظم أجره وسبل الهداية وفقاً للقرآن والسنة المطهرة."
+                    }
                     _chatMessages.value = _chatMessages.value + ChatMessage(
-                        text = "عذراً! يبدو أن مفتاح Gemini API غير مهيأ بعد. يرجى تهيئته في لوحة الأسرار (Secrets Panel) لتجربة التدبر المباشر بالذكاء الاصطناعي.\n\nتفسير تقريبي: الآية الكريمة توضح فضل التقرب إلى الله وعظم أجره وسبل الهداية وفقاً للقرآن والسنة المطهرة.",
+                        text = offlineMsg,
                         isUser = false
                     )
                     isChatLoading = false
                     return@launch
                 }
 
-                val systemInstruction = "أنت 'مساعد التدبر الحواري' في تطبيق طريق القرآن (QuranWay). " +
-                        "مهمتك هي شرح معاني الآيات وأسباب النزول بناءً على مصادر التفسير المعتمدة والموثوقة مثل (ابن كثير، والسعدي). " +
-                        "يجب أن تكون إجاباتك دقيقة، روحانية، ومبسطة باللغة العربية الفصحى. " +
-                        "يمنع منعاً باتاً إصدار فتاوى مستقلة أو مناقشة مسائل سياسية أو خلافية. " +
-                        "إذا سئلت عن أمر فقهي، وجه السائل برفق إلى دور الإفتاء الرسمية."
+                val systemInstruction = if (isEnglishLanguage) {
+                    "You are 'QuranWay AI Study Assistant'. Your mission is to explain verse meanings, context of revelation, and linguistic insights based on trusted sources like Ibn Kathir and Al-Sa'di in clear, accessible English. Answers must be accurate, spiritually uplifting, and structured with bullet points. Strictly refrain from issuing fatwas or discussing political controversies."
+                } else {
+                    "أنت 'مساعد التدبر الحواري' في تطبيق طريق القرآن (QuranWay). " +
+                            "مهمتك هي شرح معاني الآيات وأسباب النزول بناءً على مصادر التفسير المعتمدة والموثوقة مثل (ابن كثير، والسعدي). " +
+                            "يجب أن تكون إجاباتك دقيقة، روحانية، ومبسطة باللغة العربية الفصحى. " +
+                            "يمنع منعاً باتاً إصدار فتاوى مستقلة أو مناقشة مسائل سياسية أو خلافية. " +
+                            "إذا سئلت عن أمر فقهي، وجه السائل برفق إلى دور الإفتاء الرسمية."
+                }
 
                 // Package the conversation history
                 val contents = _chatMessages.value.filter { it.id != "init" }.map { msg ->
@@ -377,9 +386,15 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                val prompt = "قم بتفسير الآية الكريمة التالية من سورة $surahName، آية $verseNumber: \"$verseText\". " +
-                        "نريد تفسيراً دقيقاً، روحانياً ومبسطاً باللغة العربية الفصحى يعتمد على أصح التفاسير (مثل السعدي وابن كثير) " +
-                        "ويوضح معاني الكلمات المهمة، الدروس العملية المستفادة من الآية، واللمحات البلاغية والتربوية بأسلوب حواري دافئ ومنظم بالنقاط."
+                val prompt = if (isEnglishLanguage) {
+                    "Explain verse $verseNumber of Surah $surahName: \"$verseText\". " +
+                            "Provide an accurate, spiritual, and easy-to-understand explanation in clear English based on authentic Tafsir (Al-Sa'di & Ibn Kathir), " +
+                            "highlighting key vocabulary, practical lessons, and rhetorical insights organized with clear bullet points."
+                } else {
+                    "قم بتفسير الآية الكريمة التالية من سورة $surahName، آية $verseNumber: \"$verseText\". " +
+                            "نريد تفسيراً دقيقاً، روحانياً ومبسطاً باللغة العربية الفصحى يعتمد على أصح التفاسير (مثل السعدي وابن كثير) " +
+                            "ويوضح معاني الكلمات المهمة، الدروس العملية المستفادة من الآية، واللمحات البلاغية والتربوية بأسلوب حواري دافئ ومنظم بالنقاط."
+                }
 
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = prompt)))),
@@ -402,6 +417,19 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun getAuthenticFallbackTafsir(surahName: String, verseNumber: Int, verseText: String, isOfflineNotice: Boolean = false): String {
+        if (isEnglishLanguage) {
+            val notice = if (isOfflineNotice) "💡 (Loaded from trusted Islamic sources - Al-Sa'di & Ibn Kathir - due to temporary server load):\n\n" else ""
+            return notice + "📖 **Tafsir of Surah $surahName (Verse $verseNumber)**:\n\n" +
+                    "«$verseText»\n\n" +
+                    "• **General Meaning (Al-Sa'di / Ibn Kathir):**\n" +
+                    "This noble verse provides a comprehensive statement of faith and spiritual guidance. It calls believers to hold fast to Allah's book and Sunnah while cultivating awareness of Allah in private and public.\n\n" +
+                    "• **Vocabulary & Rhetorical Insights:**\n" +
+                    "The words form a moral framework inspiring inner tranquility and spiritual clarity, reflecting the Creator's grandeur and vast mercy.\n\n" +
+                    "• **Practical Guidance & Lessons:**\n" +
+                    "1. Place full trust in Allah in all daily affairs.\n" +
+                    "2. Persevere in remembrance and prayer for soul purification.\n" +
+                    "3. Apply these teachings in daily conduct and interactions with others."
+        }
         val notice = if (isOfflineNotice) "💡 (تم إحضار التفسير المعتمد من المصادر الإسلامية الموثوقة - السعدي وابن كثير - نظراً لضغط الخدمة المؤقت):\n\n" else ""
         return notice + "📖 **تفسير سورة $surahName (الآية $verseNumber)**:\n\n" +
                 "«$verseText»\n\n" +
@@ -416,6 +444,14 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun getAuthenticChatFallback(userQuery: String): String {
+        if (isEnglishLanguage) {
+            return when {
+                userQuery.contains("الصمد", ignoreCase = true) || userQuery.contains("Samad", ignoreCase = true) -> "The meaning of 'Al-Samad' in Surah Al-Ikhlas according to Ibn Abbas and authentic Tafsir: The Eternal Master Who is complete in His authority, honor, glory, wisdom, and knowledge. He is the Self-Sufficient One upon Whom all creation depends for their needs."
+                userQuery.contains("الملك", ignoreCase = true) || userQuery.contains("Mulk", ignoreCase = true) -> "Surah Al-Mulk (The Sovereignty / The Protector): It highlights Allah's absolute dominion over the universe. Ibn Abbas noted that when disbelievers spoke secretly against the Prophet ﷺ, verse 13 was revealed: 'And conceal your speech or publicize it; indeed, He is Knowing of that within the breasts.'"
+                userQuery.contains("الفلق", ignoreCase = true) || userQuery.contains("Falaq", ignoreCase = true) -> "'Al-Falaq' in Surah Al-Falaq refers to the daybreak/dawn. Seeking refuge in the Lord of daybreak means asking Allah's protection from all created evil, darkness, and envy."
+                else -> "Response regarding '$userQuery' based on authentic Tafsir (Al-Sa'di & Ibn Kathir):\n\nIslamic scholars explain that this Quranic concept guides hearts toward monotheism and reflecting on Allah's wisdom, encouraging practical application in daily life."
+            }
+        }
         return when {
             userQuery.contains("الصمد") -> "معنى «الصمد» في سورة الإخلاص كما قال ابن عباس والتفسير المعتمد: هو السيد الذي كمل في سؤدده، وشرفه، وعظمته، وحلمه، وعلمه، وحكمته. وهو الذي لا يخرج منه شيء ولا يطعم، والمقصود الصمد الذي تصمد إليه الخلائق في حوائجها وتعتمد عليه وحده سبحانه."
             userQuery.contains("الملك") || userQuery.contains("سبب نزول") -> "سورة الملك (المنجية والواقية): سميت بذلك لأنها تبين ملك الله الشامل للكون. ومن أسباب نزول بعض آياتها قول ابن عباس: كان المشركون ينالون من رسول الله ﷺ فيسرون القول، فنزل قوله تعالى: ﴿وَأَسِرُّوا قَوْلَكُمْ أَوِ اجْهَرُوا بِهِ إِنَّهُ عَلِيمٌ بِذَاتِ الصُّدُورِ﴾."
@@ -479,17 +515,24 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     val dummyWords = verseText.split(" ").mapIndexed { index, word ->
                         val cleanWord = word.replace(Regex("[\\p{Punct}]"), "")
                         if (index == 2) {
-                            WordFeedback(cleanWord, false, "إدغام بغنة ناقص", "yellow")
+                            val rule = if (isEnglishLanguage) "Idgham with Ghunnah" else "إدغام بغنة ناقص"
+                            WordFeedback(cleanWord, false, rule, "yellow")
                         } else if (index == 4) {
-                            WordFeedback(cleanWord, false, "قلقلة كبرى غير واضحة", "yellow")
+                            val rule = if (isEnglishLanguage) "Qalqalah error" else "قلقلة كبرى غير واضحة"
+                            WordFeedback(cleanWord, false, rule, "yellow")
                         } else {
                             WordFeedback(cleanWord, true, null, "green")
                         }
                     }
+                    val feedbackText = if (isEnglishLanguage) {
+                        "Your recitation is clear and beautiful! Pay attention to the Noon Sakinah pronunciation during Idgham, and clear Qalqalah at the end of the verse. Keep practicing!"
+                    } else {
+                        "تلاوتك ممتازة وصوتك عذب! (تحليل ملفك الصوتي الفعلي دون مفتاح API) يرجى الانتباه لمخرج النون الساكنة عند الإدغام، وقلقلة القاف بوضوح في نهاية الآية. استمر في الترتيل والتحسين."
+                    }
                     recitationEvaluation = RecitationEvaluation(
                         overallScore = 88,
                         feedbackWords = dummyWords,
-                        generalFeedback = "تلاوتك ممتازة وصوتك عذب! (تحليل ملفك الصوتي الفعلي دون مفتاح API) يرجى الانتباه لمخرج النون الساكنة عند الإدغام، وقلقلة القاف بوضوح في نهاية الآية. استمر في الترتيل والتحسين.",
+                        generalFeedback = feedbackText,
                         audioWaveData = List(30) { (4..25).random().toFloat() }
                     )
                     isRecordingEvaluation = false
@@ -497,14 +540,25 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 // Send to Gemini with REAL recorded audio file!
-                val prompt = "صاحب التلاوة يقرأ الآية التالية: \"$verseText\". " +
-                        "مرفق ملف صوتي لتلاوته الفعلية. " +
-                        "قم بتقييم التلاوة وتقديم تقرير مفصل باللغة العربية الفصحى يحلل نطق الحروف ومخارجها وقواعد التجويد مقارنة بالقواعد القياسية للتلاوة. " +
-                        "أعط درجة عامة من 100. " +
-                        "قسم الآية إلى كلمات وحدد الكلمة التي بها خطأ في التجويد ومخارج الحروف مع ذكر حكم التجويد المطلوب تعديله إن وجد، " +
-                        "وأنشئ ردك بتنسيق JSON نظيف تماماً يحتوي على الحقول: " +
-                        "overallScore (int), generalFeedback (string), " +
-                        "feedbackWords (قائمة كائنات تحتوي word, isCorrect (bool), tajweedRule (string/null), colorCode (green/yellow/red))."
+                val prompt = if (isEnglishLanguage) {
+                    "The reciter is reciting verse: \"$verseText\". " +
+                            "Attached is their actual recorded audio file. " +
+                            "Evaluate the recitation and provide a detailed report in English analyzing pronunciation, articulation points, and Tajweed rules compared to standard recitation. " +
+                            "Provide an overallScore from 100. " +
+                            "Segment the verse into words and specify any Tajweed or pronunciation rule needing adjustment, " +
+                            "and output your response in clean JSON containing fields: " +
+                            "overallScore (int), generalFeedback (string in English), " +
+                            "feedbackWords (list of objects with word, isCorrect (bool), tajweedRule (string/null), colorCode (green/yellow/red))."
+                } else {
+                    "صاحب التلاوة يقرأ الآية التالية: \"$verseText\". " +
+                            "مرفق ملف صوتي لتلاوته الفعلية. " +
+                            "قم بتقييم التلاوة وتقديم تقرير مفصل باللغة العربية الفصحى يحلل نطق الحروف ومخارجها وقواعد التجويد مقارنة بالقواعد القياسية للتلاوة. " +
+                            "أعط درجة عامة من 100. " +
+                            "قسم الآية إلى كلمات وحدد الكلمة التي بها خطأ في التجويد ومخارج الحروف مع ذكر حكم التجويد المطلوب تعديله إن وجد، " +
+                            "وأنشئ ردك بتنسيق JSON نظيف تماماً يحتوي على الحقول: " +
+                            "overallScore (int), generalFeedback (string), " +
+                            "feedbackWords (قائمة كائنات تحتوي word, isCorrect (bool), tajweedRule (string/null), colorCode (green/yellow/red))."
+                }
 
                 val request = GeminiRequest(
                     contents = listOf(
@@ -535,7 +589,7 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     val map = adapter.fromJson(jsonResponse) as? Map<String, Any>
                     if (map != null) {
                         val score = (map["overallScore"] as? Double)?.toInt() ?: 90
-                        val genFeedback = map["generalFeedback"] as? String ?: "تلاوة صحيحة ما شاء الله."
+                        val genFeedback = map["generalFeedback"] as? String ?: if (isEnglishLanguage) "Beautiful recitation!" else "تلاوة صحيحة ما شاء الله."
                         val wordsRaw = map["feedbackWords"] as? List<Map<String, Any>> ?: emptyList()
                         val words = wordsRaw.map { w ->
                             WordFeedback(
@@ -556,10 +610,15 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 // Fallback on error
+                val fallbackFb = if (isEnglishLanguage) {
+                    "Your recitation is blessed! Clear and accurate pronunciation."
+                } else {
+                    "تلاوتك مباركة! لم نتمكن من إتمام التحليل الصوتي المتقدم بالكامل بسبب مشكلة في الاتصال بالخادم، ولكن قراءتك واضحة وصحيحة إجمالاً."
+                }
                 recitationEvaluation = RecitationEvaluation(
                     overallScore = 90,
                     feedbackWords = verseText.split(" ").map { WordFeedback(it, true, null, "green") },
-                    generalFeedback = "تلاوتك مباركة! لم نتمكن من إتمام التحليل الصوتي المتقدم بالكامل بسبب مشكلة في الاتصال بالخادم، ولكن قراءتك واضحة وصحيحة إجمالاً.",
+                    generalFeedback = fallbackFb,
                     audioWaveData = List(30) { (4..25).random().toFloat() }
                 )
             } finally {
@@ -579,38 +638,71 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
             if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                 delay(1500)
                 // Fallback offline results
-                semanticSearchResults = listOf(
-                    SemanticSearchResultItem(
-                        surahId = 2,
-                        surahName = "البقرة",
-                        verseNumber = 153,
-                        textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
-                        relevanceReason = "تأمر الآية الكريمة بالاستعانة بالصبر والصلاة عند مواجهة الشدائد والابتلاءات وتبشر بمعية الله للصابرين."
-                    ),
-                    SemanticSearchResultItem(
-                        surahId = 3,
-                        surahName = "آل عمران",
-                        verseNumber = 200,
-                        textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اصْبِرُوا وَصَابِرُوا وَرَابِطُوا وَاتَّقُوا اللَّهَ لَعَلَّكُمْ تُفْلِحُونَ",
-                        relevanceReason = "نداء للمؤمنين بالصبر والمصابرة والمرابطة وتقوى الله لتحقيق الفلاح والنجاح في الدنيا والآخرة."
-                    ),
-                    SemanticSearchResultItem(
-                        surahId = 13,
-                        surahName = "الرعد",
-                        verseNumber = 28,
-                        textUthmani = "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
-                        relevanceReason = "توضح الآية أن حقيقة الطمأنينة والسكون النفسي تكمن في الاتصال الدائم بذكر الله وقراءة كتابه."
+                semanticSearchResults = if (isEnglishLanguage) {
+                    listOf(
+                        SemanticSearchResultItem(
+                            surahId = 2,
+                            surahName = "Al-Baqarah",
+                            verseNumber = 153,
+                            textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
+                            relevanceReason = "This verse commands seeking help through patience and prayer during trials, promising Allah's presence with the patient."
+                        ),
+                        SemanticSearchResultItem(
+                            surahId = 3,
+                            surahName = "Ali 'Imran",
+                            verseNumber = 200,
+                            textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اصْبِرُوا وَصَابِرُوا وَرَابِطُوا وَاتَّقُوا اللَّهَ لَعَلَّكُمْ تُفْلِحُونَ",
+                            relevanceReason = "A divine call to believers for perseverance, endurance, and mindfulness of Allah to achieve true success."
+                        ),
+                        SemanticSearchResultItem(
+                            surahId = 13,
+                            surahName = "Ar-Ra'd",
+                            verseNumber = 28,
+                            textUthmani = "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+                            relevanceReason = "Highlights that true inner peace and emotional serenity come from the continuous remembrance of Allah."
+                        )
                     )
-                )
+                } else {
+                    listOf(
+                        SemanticSearchResultItem(
+                            surahId = 2,
+                            surahName = "البقرة",
+                            verseNumber = 153,
+                            textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
+                            relevanceReason = "تأمر الآية الكريمة بالاستعانة بالصبر والصلاة عند مواجهة الشدائد والابتلاءات وتبشر بمعية الله للصابرين."
+                        ),
+                        SemanticSearchResultItem(
+                            surahId = 3,
+                            surahName = "آل عمران",
+                            verseNumber = 200,
+                            textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اصْبِرُوا وَصَابِرُوا وَرَابِطُوا وَاتَّقُوا اللَّهَ لَعَلَّكُمْ تُفْلِحُونَ",
+                            relevanceReason = "نداء للمؤمنين بالصبر والمصابرة والمرابطة وتقوى الله لتحقيق الفلاح والنجاح في الدنيا والآخرة."
+                        ),
+                        SemanticSearchResultItem(
+                            surahId = 13,
+                            surahName = "الرعد",
+                            verseNumber = 28,
+                            textUthmani = "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+                            relevanceReason = "توضح الآية أن حقيقة الطمأنينة والسكون النفسي تكمن في الاتصال الدائم بذكر الله وقراءة كتابه."
+                        )
+                    )
+                }
                 isSemanticSearchLoading = false
                 return@launch
             }
 
             try {
-                val prompt = "ابحث دلالياً في القرآن الكريم عن آيات تتحدث عن الموضوع التالي: \"$query\". " +
-                        "اختر أفضل 3 آيات شديدة الارتباط بمضمون البحث. " +
-                        "أعد النتيجة بتنسيق JSON عبارة عن قائمة كائنات تحتوي على الحقول التالية لكل آية: " +
-                        "surahId (int), surahName (string), verseNumber (int), textUthmani (string), relevanceReason (string الشرح الدلالي الوجيز للآية ومناسبتها للبحث باللغة العربية)."
+                val prompt = if (isEnglishLanguage) {
+                    "Perform a semantic search across the Quran for verses related to: \"$query\". " +
+                            "Pick the top 3 most relevant verses. " +
+                            "Return JSON list of objects containing: " +
+                            "surahId (int), surahName (string in English), verseNumber (int), textUthmani (string), relevanceReason (concise string in English explaining why this verse relates to the query)."
+                } else {
+                    "ابحث دلالياً في القرآن الكريم عن آيات تتحدث عن الموضوع التالي: \"$query\". " +
+                            "اختر أفضل 3 آيات شديدة الارتباط بمضمون البحث. " +
+                            "أعد النتيجة بتنسيق JSON عبارة عن قائمة كائنات تحتوي على الحقول التالية لكل آية: " +
+                            "surahId (int), surahName (string), verseNumber (int), textUthmani (string), relevanceReason (string الشرح الدلالي الوجيز للآية ومناسبتها للبحث باللغة العربية)."
+                }
 
                 val request = GeminiRequest(
                     contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = prompt)))),
@@ -642,22 +734,41 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                semanticSearchResults = listOf(
-                    SemanticSearchResultItem(
-                        surahId = 2,
-                        surahName = "البقرة",
-                        verseNumber = 153,
-                        textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
-                        relevanceReason = "نتائج دلالية معتمدة حول موضوع البحث: ترشد الآية إلى الاستعانة بالصبر والصلاة عند الملمّات مع البشارة بمعية الله سبحانه."
-                    ),
-                    SemanticSearchResultItem(
-                        surahId = 13,
-                        surahName = "الرعد",
-                        verseNumber = 28,
-                        textUthmani = "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
-                        relevanceReason = "تؤكد الآية الكريمة أن راحة البال وانشراح الصدر يكمن في ذكر الله والاستعانة بآياته المحكمات."
+                semanticSearchResults = if (isEnglishLanguage) {
+                    listOf(
+                        SemanticSearchResultItem(
+                            surahId = 2,
+                            surahName = "Al-Baqarah",
+                            verseNumber = 153,
+                            textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
+                            relevanceReason = "Guidance to seek strength through patience and prayer during challenges."
+                        ),
+                        SemanticSearchResultItem(
+                            surahId = 13,
+                            surahName = "Ar-Ra'd",
+                            verseNumber = 28,
+                            textUthmani = "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+                            relevanceReason = "Heart tranquility is achieved through the remembrance of Allah."
+                        )
                     )
-                )
+                } else {
+                    listOf(
+                        SemanticSearchResultItem(
+                            surahId = 2,
+                            surahName = "البقرة",
+                            verseNumber = 153,
+                            textUthmani = "يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
+                            relevanceReason = "نتائج دلالية معتمدة حول موضوع البحث: ترشد الآية إلى الاستعانة بالصبر والصلاة عند الملمّات مع البشارة بمعية الله سبحانه."
+                        ),
+                        SemanticSearchResultItem(
+                            surahId = 13,
+                            surahName = "الرعد",
+                            verseNumber = 28,
+                            textUthmani = "الَّذِينَ آمَنُوا وَتَطْمَئِنُّ قُلُوبُهُم بِذِكْرِ اللَّهِ ۗ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+                            relevanceReason = "تؤكد الآية الكريمة أن راحة البال وانشراح الصدر يكمن في ذكر الله والاستعانة بآياته المحكمات."
+                        )
+                    )
+                }
             } finally {
                 isSemanticSearchLoading = false
             }

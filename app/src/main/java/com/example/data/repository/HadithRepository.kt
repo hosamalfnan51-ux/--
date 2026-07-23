@@ -5,7 +5,11 @@ data class Hadith(
     val text: String,
     val narrator: String,
     val chapter: String,
-    val explanation: String
+    val explanation: String,
+    val textEnglish: String = "",
+    val narratorEnglish: String = "",
+    val chapterEnglish: String = "",
+    val explanationEnglish: String = ""
 )
 
 object HadithRepository {
@@ -27,6 +31,29 @@ object HadithRepository {
         "العدل والأمانة وجبر الخواطر",
         "المحبة في الله والأخوة"
     )
+
+    val chaptersEnglish = listOf(
+        "All",
+        "Prayer, Mosque & Purification",
+        "Fasting, Ramadan & Night Prayer",
+        "Zakat, Charity & Spending",
+        "Filial Piety & Family Ties",
+        "Remembrance, Supplication & Forgiveness",
+        "Seeking Knowledge & Quran Recitation",
+        "Good Character & Islamic Morals",
+        "Doing Good & Spreading Peace",
+        "Repentance, Patience & Trust in Allah",
+        "Daily Adhkar & Sunnah",
+        "Transactions & Halal Earnings",
+        "Hajj & Umrah",
+        "Justice, Trust & Compassion",
+        "Brotherhood & Loving for Allah"
+    )
+
+    fun getChapterEnglish(arabicChapter: String): String {
+        val idx = chapters.indexOf(arabicChapter)
+        return if (idx >= 0 && idx < chaptersEnglish.size) chaptersEnglish[idx] else arabicChapter
+    }
 
     val hadithsList: List<Hadith> = generateAuthenticHadiths()
 

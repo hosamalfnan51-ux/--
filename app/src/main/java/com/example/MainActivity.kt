@@ -370,7 +370,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
         ) {
         // Horizontally scrollable Surahs chip selector
         Text(
-            text = "اختر السورة الكريمة للتلاوة والتدبر",
+            text = if (viewModel.isEnglishLanguage) "Select Surah for Recitation & Reflection" else "اختر السورة الكريمة للتلاوة والتدبر",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -393,7 +393,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                     onClick = { viewModel.selectSurah(surah) },
                     label = {
                         Text(
-                            text = surah.nameArabic,
+                            text = if (viewModel.isEnglishLanguage) surah.nameComplex else surah.nameArabic,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -448,7 +448,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                 }
 
                 Text(
-                    text = "رواية المصحف:",
+                    text = if (viewModel.isEnglishLanguage) "Qira'ah Narration:" else "رواية المصحف:",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.secondary,
                     fontWeight = FontWeight.Medium
@@ -477,7 +477,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "طريق القرآن الذكي",
+                        text = if (viewModel.isEnglishLanguage) "Smart Quran Path" else "طريق القرآن الذكي",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary,
@@ -485,7 +485,8 @@ fun MushafScreen(viewModel: QuranViewModel) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "اختر سورة مباركة لتبدأ رحلة التدبر والتلاوة برواية حفص أو ورش أو قالون مع رصد فوري للتجويد",
+                        text = if (viewModel.isEnglishLanguage) "Select a blessed Surah to begin your journey of reflection, recitation, and real-time Tajweed coaching."
+                        else "اختر سورة مباركة لتبدأ رحلة التدبر والتلاوة برواية حفص أو ورش أو قالون مع رصد فوري للتجويد",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center
@@ -505,14 +506,14 @@ fun MushafScreen(viewModel: QuranViewModel) {
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "سُورَةُ ${activeSurah.nameArabic}",
+                        text = if (viewModel.isEnglishLanguage) "SURAH ${activeSurah.nameComplex.uppercase()}" else "سُورَةُ ${activeSurah.nameArabic}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 Text(
-                    text = "${activeSurah.revelationPlace} • ${activeSurah.versesCount} آية",
+                    text = if (viewModel.isEnglishLanguage) "${activeSurah.revelationPlace} • ${activeSurah.versesCount} Verses" else "${activeSurah.revelationPlace} • ${activeSurah.versesCount} آية",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -558,7 +559,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "السورة: ${activeSurah.nameArabic}",
+                                text = if (viewModel.isEnglishLanguage) "Surah: ${activeSurah.nameComplex}" else "السورة: ${activeSurah.nameArabic}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -577,7 +578,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        text = surah.nameArabic,
+                                        text = if (viewModel.isEnglishLanguage) surah.nameComplex else surah.nameArabic,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
                                         textAlign = TextAlign.Right,
@@ -620,7 +621,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "الآية: $selectedAyahNumber",
+                                text = if (viewModel.isEnglishLanguage) "Ayah: $selectedAyahNumber" else "الآية: $selectedAyahNumber",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -698,6 +699,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                             verse = verse,
                             isPlaying = isPlaying,
                             isBookmarked = isBookmarked,
+                            isEnglish = viewModel.isEnglishLanguage,
                             onPlayClick = { viewModel.playAudio(verse) },
                             onWordClick = { word ->
                                 selectedWordArabic = word
@@ -810,6 +812,7 @@ fun VerseItemCard(
     verse: Verse,
     isPlaying: Boolean,
     isBookmarked: Boolean = false,
+    isEnglish: Boolean = false,
     onPlayClick: () -> Unit,
     onWordClick: (String) -> Unit,
     onTafsirClick: () -> Unit,
@@ -847,7 +850,7 @@ fun VerseItemCard(
 
                     // Interactive Word Analysis Chips (In Native RTL)
                     Text(
-                        text = "مفردات الآية الكريمة (انقر للتفسير والتدبر):",
+                        text = if (isEnglish) "Ayah Vocabulary (Tap for meaning):" else "مفردات الآية الكريمة (انقر للتفسير والتدبر):",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.secondary,
                         fontWeight = FontWeight.Medium
@@ -886,8 +889,9 @@ fun VerseItemCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Translation
+            val displayTranslation = if (isEnglish && verse.translationEnglish.isNotEmpty()) verse.translationEnglish else verse.translation
             Text(
-                text = verse.translation,
+                text = displayTranslation,
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.secondary,
                 textAlign = TextAlign.Start,
@@ -906,7 +910,7 @@ fun VerseItemCard(
                     IconButton(onClick = onPlayClick) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                            contentDescription = "الاستماع للآية الكريمة",
+                            contentDescription = if (isEnglish) "Listen to verse" else "الاستماع للآية الكريمة",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(28.dp)
                         )
@@ -915,7 +919,7 @@ fun VerseItemCard(
                     IconButton(onClick = onTafsirClick) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "التفسير التفاعلي بالذكاء الاصطناعي",
+                            contentDescription = if (isEnglish) "Interactive AI Tafsir" else "التفسير التفاعلي بالذكاء الاصطناعي",
                             tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -924,7 +928,7 @@ fun VerseItemCard(
                     IconButton(onClick = onBookmarkClick) {
                         Icon(
                             imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = "حفظ القراءة",
+                            contentDescription = if (isEnglish) "Bookmark verse" else "حفظ القراءة",
                             tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -932,7 +936,7 @@ fun VerseItemCard(
                 }
 
                 Text(
-                    text = "آية ${verse.verseNumber}",
+                    text = if (isEnglish) "Ayah ${verse.verseNumber}" else "آية ${verse.verseNumber}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -945,6 +949,7 @@ fun VerseItemCard(
 @Composable
 fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
     val verse = viewModel.selectedTafsirVerse
+    val isEng = viewModel.isEnglishLanguage
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -959,7 +964,7 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                 Icon(imageVector = Icons.Default.Close, contentDescription = "إغلاق")
             }
             Text(
-                text = "التدبر والتفسير الذكي",
+                text = if (isEng) "AI Tafsir & Insights" else "التدبر والتفسير الذكي",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -969,7 +974,11 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
 
         if (verse == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "يرجى تحديد آية من المصحف لعرض تفسيرها التدبري الذكي.", color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
+                Text(
+                    text = if (isEng) "Please select a verse from the Quran to display its AI Tafsir." else "يرجى تحديد آية من المصحف لعرض تفسيرها التدبري الذكي.",
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
+                )
             }
         } else {
             Column(
@@ -984,7 +993,7 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "سورة ${viewModel.selectedSurah?.nameArabic ?: ""} - آية ${verse.verseNumber}",
+                            text = if (isEng) "Surah ${viewModel.selectedSurah?.nameComplex ?: ""} - Ayah ${verse.verseNumber}" else "سورة ${viewModel.selectedSurah?.nameArabic ?: ""} - آية ${verse.verseNumber}",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.align(Alignment.End)
@@ -1012,7 +1021,7 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "جارٍ استحضار الدلالات والتفاسير المعتمدة بالذكاء الاصطناعي...",
+                            text = if (isEng) "Retrieving authentic AI Tafsir & insights..." else "جارٍ استحضار الدلالات والتفاسير المعتمدة بالذكاء الاصطناعي...",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.secondary,
                             textAlign = TextAlign.Center
@@ -1020,7 +1029,7 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                     }
                 } else {
                     Text(
-                        text = viewModel.aiTafsirText ?: "لا يوجد تفسير متاح حالياً.",
+                        text = viewModel.aiTafsirText ?: (if (isEng) "No Tafsir available currently." else "لا يوجد تفسير متاح حالياً."),
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 22.sp,
@@ -1096,6 +1105,7 @@ fun AIRecitationAndSearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCoachVerseText by remember { mutableStateOf("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ") }
     var showTajweedLegend by remember { mutableStateOf(false) }
+    val isEng = viewModel.isEnglishLanguage
 
     LazyColumn(
         modifier = Modifier
@@ -1113,14 +1123,14 @@ fun AIRecitationAndSearchScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "البحث الدلالي الذكي (AI)",
+                        text = if (isEng) "AI Semantic Quran Search" else "البحث الدلالي الذكي (AI)",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.align(Alignment.End)
                     )
                     Text(
-                        text = "ابحث بالمعنى أو الفكرة مثل 'آيات الطمأنينة' أو 'الصبر'",
+                        text = if (isEng) "Search by concept or theme such as 'Verses of Peace', 'Patience', or 'Knowledge'" else "ابحث بالمعنى أو الفكرة مثل 'آيات الطمأنينة' أو 'الصبر'",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.align(Alignment.End),
@@ -1135,10 +1145,10 @@ fun AIRecitationAndSearchScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("semantic_search_input"),
-                        placeholder = { Text("أدخل موضوع البحث (مثال: فضل العلم)") },
+                        placeholder = { Text(if (isEng) "Enter topic (e.g. Virtue of knowledge)" else "أدخل موضوع البحث (مثال: فضل العلم)") },
                         trailingIcon = {
                             IconButton(onClick = { viewModel.performSemanticSearch(searchQuery) }) {
-                                Icon(imageVector = Icons.Default.Search, contentDescription = "بحث")
+                                Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
                             }
                         },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -1154,23 +1164,23 @@ fun AIRecitationAndSearchScreen(
                     ) {
                         Button(
                             onClick = {
-                                searchQuery = "آيات تبث الطمأنينة"
+                                searchQuery = if (isEng) "Verses bringing inner peace and tranquility" else "آيات تبث الطمأنينة"
                                 viewModel.performSemanticSearch(searchQuery)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("آيات الطمأنينة", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(if (isEng) "Tranquility Verses" else "آيات الطمأنينة", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                         }
                         Button(
                             onClick = {
-                                searchQuery = "الصبر ومواجهة الابتلاء"
+                                searchQuery = if (isEng) "Patience and overcoming trials" else "الصبر ومواجهة الابتلاء"
                                 viewModel.performSemanticSearch(searchQuery)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("الصبر والابتلاء", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(if (isEng) "Patience & Trials" else "الصبر والابتلاء", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -1187,7 +1197,7 @@ fun AIRecitationAndSearchScreen(
         } else if (viewModel.semanticSearchResults.isNotEmpty()) {
             item {
                 Text(
-                    text = "نتائج البحث الدلالي الذكي:",
+                    text = if (isEng) "AI Semantic Search Results:" else "نتائج البحث الدلالي الذكي:",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary,
@@ -1198,6 +1208,7 @@ fun AIRecitationAndSearchScreen(
             items(viewModel.semanticSearchResults) { result ->
                 SemanticSearchResultCard(
                     result = result,
+                    isEnglish = isEng,
                     onJumpClick = {
                         viewModel.jumpToVerseInMushaf(result.surahId, result.verseNumber) {
                             onNavigateToMushaf()
@@ -1220,14 +1231,14 @@ fun AIRecitationAndSearchScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "معلم التلاوة الذكي (Coach)",
+                        text = if (isEng) "AI Tajweed & Recitation Coach" else "معلم التلاوة الذكي (Coach)",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.align(Alignment.End)
                     )
                     Text(
-                        text = "اقرأ بصوتك وسيقوم الذكاء الاصطناعي برصد أحكام التجويد ومخارج الحروف فوراً",
+                        text = if (isEng) "Recite into your microphone to get instant real-time AI Tajweed feedback" else "اقرأ بصوتك وسيقوم الذكاء الاصطناعي برصد أحكام التجويد ومخارج الحروف فوراً",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.align(Alignment.End),
@@ -1262,7 +1273,7 @@ fun AIRecitationAndSearchScreen(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "اختر الآية الكريمة للتجربة:", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                        Text(text = if (isEng) "Select verse to practice:" else "اختر الآية الكريمة للتجربة:", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     }
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -1288,12 +1299,12 @@ fun AIRecitationAndSearchScreen(
                     // Microphone interaction button
                     if (viewModel.isRecordingEvaluation) {
                         // Live wave animation
-                        Text(text = "جارٍ تحليل مخارج الحروف وقواعد التجويد بذكاء...", fontSize = 12.sp, color = TajweedYellow)
+                        Text(text = if (isEng) "Analyzing pronunciation & Tajweed rules..." else "جارٍ تحليل مخارج الحروف وقواعد التجويد بذكاء...", fontSize = 12.sp, color = TajweedYellow)
                         Spacer(modifier = Modifier.height(8.dp))
                         AnimatedWaveform()
                     } else if (viewModel.isRecordingAudio) {
                         // Recording state
-                        Text(text = "التسجيل مستمر... اضغط على الزر للإيقاف والتحليل", fontSize = 12.sp, color = TajweedRed, fontWeight = FontWeight.Bold)
+                        Text(text = if (isEng) "Recording... Tap button to stop and evaluate" else "التسجيل مستمر... اضغط على الزر للإيقاف والتحليل", fontSize = 12.sp, color = TajweedRed, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = {
@@ -1305,10 +1316,10 @@ fun AIRecitationAndSearchScreen(
                                 .size(72.dp)
                                 .testTag("coach_stop_button")
                         ) {
-                            Icon(imageVector = Icons.Default.Stop, contentDescription = "إيقاف وتوجيه للذكاء الاصطناعي", modifier = Modifier.size(36.dp))
+                            Icon(imageVector = Icons.Default.Stop, contentDescription = "Stop recording", modifier = Modifier.size(36.dp))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "جارٍ تسجيل تلاوتك الفعلية...", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                        Text(text = if (isEng) "Recording your recitation..." else "جارٍ تسجيل تلاوتك الفعلية...", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     } else {
                         Button(
                             onClick = {
@@ -1321,10 +1332,10 @@ fun AIRecitationAndSearchScreen(
                                 .size(72.dp)
                                 .testTag("coach_record_button")
                         ) {
-                            Icon(imageVector = Icons.Default.Mic, contentDescription = "تسجيل", modifier = Modifier.size(36.dp))
+                            Icon(imageVector = Icons.Default.Mic, contentDescription = "Record", modifier = Modifier.size(36.dp))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "انقر للبدء بتسجيل تلاوتك الفردية", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                        Text(text = if (isEng) "Tap microphone to start hands-free recitation coaching" else "انقر للبدء بتسجيل تلاوتك الفردية", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     }
 
                     // Display Recitation Analysis Evaluation
@@ -1341,6 +1352,7 @@ fun AIRecitationAndSearchScreen(
 @Composable
 fun SemanticSearchResultCard(
     result: SemanticSearchResultItem,
+    isEnglish: Boolean = false,
     onJumpClick: () -> Unit = {}
 ) {
     Card(
@@ -1354,13 +1366,13 @@ fun SemanticSearchResultCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${result.surahName} • آية ${result.verseNumber}",
+                    text = if (isEnglish) "${result.surahName} • Ayah ${result.verseNumber}" else "${result.surahName} • آية ${result.verseNumber}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "تطابق دلالي ذكي",
+                    text = if (isEnglish) "AI Semantic Match" else "تطابق دلالي ذكي",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier
@@ -1392,9 +1404,9 @@ fun SemanticSearchResultCard(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 modifier = Modifier.align(Alignment.Start)
             ) {
-                Icon(imageVector = Icons.Default.Book, contentDescription = "قراءة", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Icon(imageVector = Icons.Default.Book, contentDescription = "Read", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "عرض الآية بالمصحف الشريف", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                Text(text = if (isEnglish) "Open Verse in Mushaf" else "عرض الآية بالمصحف الشريف", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -2550,6 +2562,7 @@ fun BookmarksDialog(
     onDismiss: () -> Unit,
     onJumpToVerse: (Int, Int) -> Unit
 ) {
+    val isEng = viewModel.isEnglishLanguage
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -2566,7 +2579,7 @@ fun BookmarksDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "العلامات المرجعية وآخر قراءة",
+                    text = if (isEng) "Bookmarks & Last Position" else "العلامات المرجعية وآخر قراءة",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -2584,14 +2597,14 @@ fun BookmarksDialog(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "موضع آخر قراءة 📌",
+                                text = if (isEng) "Last Read Position 📌" else "موضع آخر قراءة 📌",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "سورة ${lastRead.surahName} - آية ${lastRead.verseNumber}",
+                                text = if (isEng) "Surah ${lastRead.surahName} - Ayah ${lastRead.verseNumber}" else "سورة ${lastRead.surahName} - آية ${lastRead.verseNumber}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -2612,7 +2625,7 @@ fun BookmarksDialog(
                                     .fillMaxWidth()
                                     .height(36.dp)
                             ) {
-                                Text("الانتقال لآخر قراءة", fontSize = 12.sp)
+                                Text(if (isEng) "Go to Last Read" else "الانتقال لآخر قراءة", fontSize = 12.sp)
                             }
                         }
                     }
@@ -2620,7 +2633,7 @@ fun BookmarksDialog(
                 }
 
                 Text(
-                    text = "قائمة الآيات المحفوظة (${viewModel.bookmarksList.size})",
+                    text = if (isEng) "Saved Verses (${viewModel.bookmarksList.size})" else "قائمة الآيات المحفوظة (${viewModel.bookmarksList.size})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary,
@@ -2631,7 +2644,7 @@ fun BookmarksDialog(
 
                 if (viewModel.bookmarksList.isEmpty()) {
                     Text(
-                        text = "لا توجد علامات مرجعية محفوظة حالياً. انقر على أيقونة العلامة المرجعية بجانب أي آية لحفظها.",
+                        text = if (isEng) "No saved bookmarks currently. Tap the bookmark icon next to any verse to save it." else "لا توجد علامات مرجعية محفوظة حالياً. انقر على أيقونة العلامة المرجعية بجانب أي آية لحفظها.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center,
@@ -2660,7 +2673,7 @@ fun BookmarksDialog(
                                     IconButton(
                                         onClick = { viewModel.toggleBookmark(item.surahId, item.surahName, item.verseNumber, item.textUthmani) }
                                     ) {
-                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "حذف", tint = TajweedRed)
+                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = TajweedRed)
                                     }
 
                                     Column(
@@ -2668,7 +2681,7 @@ fun BookmarksDialog(
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
-                                            text = "${item.surahName} • آية ${item.verseNumber}",
+                                            text = if (isEng) "${item.surahName} • Ayah ${item.verseNumber}" else "${item.surahName} • آية ${item.verseNumber}",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
@@ -2694,7 +2707,7 @@ fun BookmarksDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("إغلاق")
+                    Text(if (isEng) "Close" else "إغلاق")
                 }
             }
         }
@@ -2706,6 +2719,7 @@ fun SettingsDialog(
     viewModel: QuranViewModel,
     onDismiss: () -> Unit
 ) {
+    val isEng = viewModel.isEnglishLanguage
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -2722,7 +2736,7 @@ fun SettingsDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "إعدادات القراءة والإنصات",
+                    text = if (isEng) "Reading & Recitation Settings" else "إعدادات القراءة والإنصات",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -2731,7 +2745,7 @@ fun SettingsDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "اختر القارئ المفضل للإنصات والتكرار:",
+                    text = if (isEng) "Select preferred reciter:" else "اختر القارئ المفضل للإنصات والتكرار:",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.secondary,
@@ -2740,7 +2754,12 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val reciters = listOf(
+                val reciters = if (isEng) listOf(
+                    "Mishary Rashid Alafasy",
+                    "Mahmoud Khalil Al-Hussary",
+                    "Abdul Basit Abdul Samad",
+                    "Mohamed Siddiq El-Minshawi"
+                ) else listOf(
                     "الشيخ مشاري العفاسي",
                     "الشيخ محمود خليل الحصري",
                     "الشيخ عبد الباسط عبد الصمد",
@@ -2748,7 +2767,7 @@ fun SettingsDialog(
                 )
 
                 reciters.forEach { reciter ->
-                    val isSelected = viewModel.selectedReciter == reciter
+                    val isSelected = viewModel.selectedReciter == reciter || (isEng && viewModel.selectedReciter.contains("مشاري") && reciter.contains("Mishary"))
                     Card(
                         onClick = { viewModel.selectedReciter = reciter },
                         colors = CardDefaults.cardColors(
@@ -2768,7 +2787,7 @@ fun SettingsDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (isSelected) {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = "محدد", tint = MaterialTheme.colorScheme.primary)
+                                Icon(imageVector = Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
                             } else {
                                 Spacer(modifier = Modifier.width(24.dp))
                             }
@@ -2789,7 +2808,7 @@ fun SettingsDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("حفظ وإغلاق")
+                    Text(if (isEng) "Save & Close" else "حفظ وإغلاق")
                 }
             }
         }
@@ -2803,6 +2822,7 @@ fun BottomAudioPlayerBar(
 ) {
     val currentVerseId = viewModel.playingVerseId ?: return
     val currentVerse = viewModel.versesList.find { it.id == currentVerseId } ?: return
+    val isEng = viewModel.isEnglishLanguage
 
     Card(
         modifier = Modifier
@@ -2820,7 +2840,7 @@ fun BottomAudioPlayerBar(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { viewModel.playPreviousVerse() }) {
-                    Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "الآية السابقة", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "Previous Verse", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 IconButton(
                     onClick = { viewModel.isAudioPlaying = !viewModel.isAudioPlaying },
@@ -2830,18 +2850,18 @@ fun BottomAudioPlayerBar(
                 ) {
                     Icon(
                         imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "تشغيل/إيقاف",
+                        contentDescription = "Play/Pause",
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 IconButton(onClick = { viewModel.playNextVerse() }) {
-                    Icon(imageVector = Icons.Default.SkipNext, contentDescription = "الآية التالية", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Next Verse", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${viewModel.selectedReciter} • $activeSurahName (آية ${currentVerse.verseNumber})",
+                    text = if (isEng) "${viewModel.selectedReciter} • $activeSurahName (Ayah ${currentVerse.verseNumber})" else "${viewModel.selectedReciter} • $activeSurahName (آية ${currentVerse.verseNumber})",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -2922,7 +2942,8 @@ fun KhatmaDuaaDialog(onDismiss: () -> Unit) {
 @Composable
 fun HadithScreen(viewModel: QuranViewModel) {
     val context = LocalContext.current
-    val chapters = HadithRepository.chapters
+    val isEng = viewModel.isEnglishLanguage
+    val chapters = if (isEng) HadithRepository.chaptersEnglish else HadithRepository.chapters
     val filteredList = viewModel.filteredHadiths
 
     Column(
@@ -2945,14 +2966,14 @@ fun HadithScreen(viewModel: QuranViewModel) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "قسم الأحاديث النبوية الصحيحة 📖",
+                        text = if (isEng) "Authentic Prophetic Hadiths 📖" else "قسم الأحاديث النبوية الصحيحة 📖",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (viewModel.isEnglishLanguage) "Encyclopedia of 1000 Authentic Sahih Hadiths with explanations" else "موسوعة 1000 حديث صحيح شريف مقسمة على الأبواب الفقهية والتربوية مع الشرح والفوائد",
+                        text = if (isEng) "Encyclopedia of 1000 Authentic Sahih Hadiths with English translations & benefits" else "موسوعة 1000 حديث صحيح شريف مقسمة على الأبواب الفقهية والتربوية مع الشرح والفوائد",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                         lineHeight = 18.sp
@@ -2973,7 +2994,7 @@ fun HadithScreen(viewModel: QuranViewModel) {
         OutlinedTextField(
             value = viewModel.hadithSearchQuery,
             onValueChange = { viewModel.hadithSearchQuery = it },
-            placeholder = { Text("ابحث في نص الحديث، الراوي، أو الشرح...", fontSize = 13.sp) },
+            placeholder = { Text(if (isEng) "Search 1000 authentic hadiths by topic, text or narrator..." else "ابحث في نص الحديث، الراوي، أو الشرح...", fontSize = 13.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث") },
             trailingIcon = {
                 if (viewModel.hadithSearchQuery.isNotEmpty()) {
@@ -2990,7 +3011,7 @@ fun HadithScreen(viewModel: QuranViewModel) {
         Spacer(modifier = Modifier.height(12.dp))
 
         // Horizontal Category / Chapter Filter Chips
-        Text(text = "اختر الباب الفقهي / الموضوع:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Text(text = if (isEng) "Select Topic / Chapter:" else "اختر الباب الفقهي / الموضوع:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(6.dp))
 
         LazyRow(
@@ -3019,14 +3040,14 @@ fun HadithScreen(viewModel: QuranViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "الأحاديث المعروضة (${filteredList.size})",
+                text = if (isEng) "Displayed Hadiths (${filteredList.size})" else "الأحاديث المعروضة (${filteredList.size})",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary
             )
             if (viewModel.favoriteHadithIds.isNotEmpty()) {
                 Text(
-                    text = "❤️ المفضلة: ${viewModel.favoriteHadithIds.size}",
+                    text = if (isEng) "❤️ Favorites: ${viewModel.favoriteHadithIds.size}" else "❤️ المفضلة: ${viewModel.favoriteHadithIds.size}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -3044,7 +3065,7 @@ fun HadithScreen(viewModel: QuranViewModel) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "لم يتم العثور على أحاديث تطابق كلمة البحث الحالية.",
+                    text = if (isEng) "No hadiths found for current search query." else "لم يتم العثور على أحاديث تطابق كلمة البحث الحالية.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.secondary,
                     textAlign = TextAlign.Center
@@ -3060,12 +3081,14 @@ fun HadithScreen(viewModel: QuranViewModel) {
                     HadithItemCard(
                         hadith = hadith,
                         isFavorite = isFavorite,
+                        isEnglish = isEng,
                         onFavoriteClick = { viewModel.toggleHadithFavorite(hadith.id) },
                         onCopyClick = {
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("Hadith", "${hadith.text}\n(${hadith.narrator})\nالمصدر: ${hadith.chapter}")
+                            val clipText = if (isEng && hadith.textEnglish.isNotEmpty()) "${hadith.textEnglish}\n(${hadith.narratorEnglish})" else "${hadith.text}\n(${hadith.narrator})"
+                            val clip = android.content.ClipData.newPlainText("Hadith", clipText)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "تم نسخ الحديث الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEng) "Hadith copied to clipboard ✨" else "تم نسخ الحديث الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -3078,6 +3101,7 @@ fun HadithScreen(viewModel: QuranViewModel) {
 fun HadithItemCard(
     hadith: Hadith,
     isFavorite: Boolean,
+    isEnglish: Boolean = false,
     onFavoriteClick: () -> Unit,
     onCopyClick: () -> Unit
 ) {
@@ -3105,7 +3129,7 @@ fun HadithItemCard(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Text(
-                        text = "📌 ${hadith.chapter}",
+                        text = if (isEnglish && hadith.chapterEnglish.isNotEmpty()) "📌 ${hadith.chapterEnglish}" else "📌 ${hadith.chapter}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -3114,7 +3138,7 @@ fun HadithItemCard(
                 }
 
                 Text(
-                    text = "حديث #${hadith.id}",
+                    text = if (isEnglish) "Hadith #${hadith.id}" else "حديث #${hadith.id}",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -3123,8 +3147,9 @@ fun HadithItemCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Hadith Text
+            val textToDisplay = if (isEnglish && hadith.textEnglish.isNotEmpty()) "${hadith.text}\n\n« ${hadith.textEnglish} »" else "« ${hadith.text} »"
             Text(
-                text = "« ${hadith.text} »",
+                text = textToDisplay,
                 fontSize = 17.sp,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
@@ -3151,8 +3176,9 @@ fun HadithItemCard(
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
+                val narratorText = if (isEnglish && hadith.narratorEnglish.isNotEmpty()) "Grade & Source: ${hadith.narratorEnglish}" else "التخريج والدرجة: ${hadith.narrator}"
                 Text(
-                    text = "التخريج والدرجة: ${hadith.narrator}",
+                    text = narratorText,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -3168,14 +3194,15 @@ fun HadithItemCard(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "💡 الفائدة وشرح الحديث الشريف:",
+                            text = if (isEnglish) "💡 Explanation & Benefits:" else "💡 الفائدة وشرح الحديث الشريف:",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
+                        val explanationText = if (isEnglish && hadith.explanationEnglish.isNotEmpty()) hadith.explanationEnglish else hadith.explanation
                         Text(
-                            text = hadith.explanation,
+                            text = explanationText,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = 20.sp
@@ -3200,7 +3227,7 @@ fun HadithItemCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (showExplanation) "إخفاء الشرح" else "الشرح والفوائد 💡",
+                        text = if (isEnglish) (if (showExplanation) "Hide Explanation" else "Explanation & Benefits 💡") else (if (showExplanation) "إخفاء الشرح" else "الشرح والفوائد 💡"),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -3235,19 +3262,22 @@ fun HadithItemCard(
 @Composable
 fun AdhkarScreen(viewModel: QuranViewModel) {
     val context = LocalContext.current
-    val categories = AdhkarRepository.categories
     val isEnglish = viewModel.isEnglishLanguage
+    val categories = if (isEnglish) AdhkarRepository.categoriesEnglish else AdhkarRepository.categories
 
     // Filtering logic
     val filteredAdhkar = remember(
         viewModel.selectedAdhkarCategory,
-        viewModel.adhkarSearchQuery
+        viewModel.adhkarSearchQuery,
+        isEnglish
     ) {
         AdhkarRepository.adhkarList.filter { dhikr ->
-            val matchCategory = viewModel.selectedAdhkarCategory == "الكل" || dhikr.category == viewModel.selectedAdhkarCategory
+            val matchCategory = viewModel.selectedAdhkarCategory == "All" || viewModel.selectedAdhkarCategory == "الكل" || dhikr.category == viewModel.selectedAdhkarCategory || dhikr.categoryEnglish == viewModel.selectedAdhkarCategory
             val matchQuery = viewModel.adhkarSearchQuery.isEmpty() ||
                     dhikr.text.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
+                    dhikr.textEnglish.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
                     dhikr.rewardOrVirtue.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
+                    dhikr.rewardOrVirtueEnglish.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
                     dhikr.reference.contains(viewModel.adhkarSearchQuery, ignoreCase = true)
             matchCategory && matchQuery
         }
@@ -3381,9 +3411,10 @@ fun AdhkarScreen(viewModel: QuranViewModel) {
                         viewModel = viewModel,
                         onCopyClick = {
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("Dhikr", "${dhikr.text}\n(${dhikr.rewardOrVirtue})\nالمصدر: ${dhikr.reference}")
+                            val clipContent = if (isEnglish && dhikr.textEnglish.isNotEmpty()) "${dhikr.textEnglish}\n(${dhikr.rewardOrVirtueEnglish})\nSource: ${dhikr.referenceEnglish}" else "${dhikr.text}\n(${dhikr.rewardOrVirtue})\nالمصدر: ${dhikr.reference}"
+                            val clip = android.content.ClipData.newPlainText("Dhikr", clipContent)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "تم نسخ الذكر الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEnglish) "Dhikr copied to clipboard ✨" else "تم نسخ الذكر الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -3400,6 +3431,7 @@ fun DhikrItemCard(
 ) {
     val remainingCount = viewModel.getDhikrRemainingCount(dhikr.id, dhikr.count)
     val isCompleted = remainingCount == 0
+    val isEng = viewModel.isEnglishLanguage
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -3428,7 +3460,7 @@ fun DhikrItemCard(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Text(
-                        text = "📌 ${dhikr.category}",
+                        text = if (isEng && dhikr.categoryEnglish.isNotEmpty()) "📌 ${dhikr.categoryEnglish}" else "📌 ${dhikr.category}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -3437,7 +3469,7 @@ fun DhikrItemCard(
                 }
 
                 Text(
-                    text = dhikr.reference,
+                    text = if (isEng && dhikr.referenceEnglish.isNotEmpty()) dhikr.referenceEnglish else dhikr.reference,
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.secondary,
                     maxLines = 1
@@ -3447,8 +3479,9 @@ fun DhikrItemCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Dhikr Main Text
+            val mainText = if (isEng && dhikr.textEnglish.isNotEmpty()) "${dhikr.text}\n\n${dhikr.textEnglish}" else dhikr.text
             Text(
-                text = dhikr.text,
+                text = mainText,
                 fontSize = 17.sp,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
@@ -3462,7 +3495,8 @@ fun DhikrItemCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             // Virtue / Reward Card
-            if (dhikr.rewardOrVirtue.isNotEmpty()) {
+            val virtueText = if (isEng && dhikr.rewardOrVirtueEnglish.isNotEmpty()) dhikr.rewardOrVirtueEnglish else dhikr.rewardOrVirtue
+            if (virtueText.isNotEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
@@ -3474,13 +3508,13 @@ fun DhikrItemCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lightbulb,
-                            contentDescription = "الفضل",
+                            contentDescription = "Virtue",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = dhikr.rewardOrVirtue,
+                            text = virtueText,
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             lineHeight = 17.sp
@@ -3500,7 +3534,7 @@ fun DhikrItemCard(
                 IconButton(onClick = onCopyClick) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "نسخ الذكر",
+                        contentDescription = "Copy Dhikr",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -3509,9 +3543,9 @@ fun DhikrItemCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (remainingCount < dhikr.count) {
                         TextButton(onClick = { viewModel.resetDhikrCount(dhikr.id, dhikr.count) }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "إعادة", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(2.dp))
-                            Text("إعادة", fontSize = 11.sp)
+                            Text(if (isEng) "Reset" else "إعادة", fontSize = 11.sp)
                         }
                         Spacer(modifier = Modifier.width(6.dp))
                     }
@@ -3526,12 +3560,12 @@ fun DhikrItemCard(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isCompleted) {
-                            Icon(Icons.Default.Check, contentDescription = "مكتمل", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Check, contentDescription = "Completed", modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "تم بحمد الله ✨", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(text = if (isEng) "Completed ✨" else "تم بحمد الله ✨", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         } else {
                             Text(
-                                text = "التكرار المتبقي: $remainingCount / ${dhikr.count}",
+                                text = if (isEng) "Remaining: $remainingCount / ${dhikr.count}" else "التكرار المتبقي: $remainingCount / ${dhikr.count}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -3549,19 +3583,22 @@ fun DhikrItemCard(
 @Composable
 fun DuaScreen(viewModel: QuranViewModel) {
     val context = LocalContext.current
-    val categories = DuaRepository.categories
     val isEnglish = viewModel.isEnglishLanguage
+    val categories = if (isEnglish) DuaRepository.categoriesEnglish else DuaRepository.categories
 
     // Filtering logic
     val filteredDuas = remember(
         viewModel.selectedDuaCategory,
-        viewModel.duaSearchQuery
+        viewModel.duaSearchQuery,
+        isEnglish
     ) {
         DuaRepository.duaList.filter { dua ->
-            val matchCategory = viewModel.selectedDuaCategory == "الكل" || dua.category == viewModel.selectedDuaCategory
+            val matchCategory = viewModel.selectedDuaCategory == "All" || viewModel.selectedDuaCategory == "الكل" || dua.category == viewModel.selectedDuaCategory || dua.categoryEnglish == viewModel.selectedDuaCategory
             val matchQuery = viewModel.duaSearchQuery.isEmpty() ||
                     dua.title.contains(viewModel.duaSearchQuery, ignoreCase = true) ||
+                    dua.titleEnglish.contains(viewModel.duaSearchQuery, ignoreCase = true) ||
                     dua.text.contains(viewModel.duaSearchQuery, ignoreCase = true) ||
+                    dua.translationEnglish.contains(viewModel.duaSearchQuery, ignoreCase = true) ||
                     dua.reference.contains(viewModel.duaSearchQuery, ignoreCase = true)
             matchCategory && matchQuery
         }
@@ -3695,9 +3732,10 @@ fun DuaScreen(viewModel: QuranViewModel) {
                         isEnglish = isEnglish,
                         onCopyClick = {
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("Dua", "${dua.title}\n${dua.text}\nالمصدر: ${dua.reference}")
+                            val clipContent = if (isEnglish && dua.translationEnglish.isNotEmpty()) "${dua.titleEnglish}\n${dua.translationEnglish}\nSource: ${dua.referenceEnglish}" else "${dua.title}\n${dua.text}\nالمصدر: ${dua.reference}"
+                            val clip = android.content.ClipData.newPlainText("Dua", clipContent)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "تم نسخ الدعاء الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEnglish) "Dua copied to clipboard ✨" else "تم نسخ الدعاء الشريف إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -3734,7 +3772,7 @@ fun DuaItemCard(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Text(
-                        text = "📖 ${dua.title}",
+                        text = if (isEnglish && dua.titleEnglish.isNotEmpty()) "📖 ${dua.titleEnglish}" else "📖 ${dua.title}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -3743,7 +3781,7 @@ fun DuaItemCard(
                 }
 
                 Text(
-                    text = dua.reference,
+                    text = if (isEnglish && dua.referenceEnglish.isNotEmpty()) dua.referenceEnglish else dua.reference,
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.secondary
                 )
