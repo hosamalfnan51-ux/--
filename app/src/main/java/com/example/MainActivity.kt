@@ -393,7 +393,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                     onClick = { viewModel.selectSurah(surah) },
                     label = {
                         Text(
-                            text = if (viewModel.isEnglishLanguage) surah.nameComplex else surah.nameArabic,
+                            text = if (viewModel.isEnglishLanguage) surah.nameEnglish else surah.nameArabic,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -506,7 +506,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = if (viewModel.isEnglishLanguage) "SURAH ${activeSurah.nameComplex.uppercase()}" else "سُورَةُ ${activeSurah.nameArabic}",
+                        text = if (viewModel.isEnglishLanguage) "SURAH ${activeSurah.nameEnglish.uppercase()}" else "سُورَةُ ${activeSurah.nameArabic}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -559,7 +559,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = if (viewModel.isEnglishLanguage) "Surah: ${activeSurah.nameComplex}" else "السورة: ${activeSurah.nameArabic}",
+                                text = if (viewModel.isEnglishLanguage) "Surah: ${activeSurah.nameEnglish}" else "السورة: ${activeSurah.nameArabic}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -578,7 +578,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        text = if (viewModel.isEnglishLanguage) surah.nameComplex else surah.nameArabic,
+                                        text = if (viewModel.isEnglishLanguage) surah.nameEnglish else surah.nameArabic,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
                                         textAlign = TextAlign.Right,
@@ -889,7 +889,7 @@ fun VerseItemCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Translation
-            val displayTranslation = if (isEnglish && verse.translationEnglish.isNotEmpty()) verse.translationEnglish else verse.translation
+            val displayTranslation = verse.translation
             Text(
                 text = displayTranslation,
                 fontSize = 13.sp,
@@ -993,7 +993,7 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = if (isEng) "Surah ${viewModel.selectedSurah?.nameComplex ?: ""} - Ayah ${verse.verseNumber}" else "سورة ${viewModel.selectedSurah?.nameArabic ?: ""} - آية ${verse.verseNumber}",
+                            text = if (isEng) "Surah ${viewModel.selectedSurah?.nameEnglish ?: ""} - Ayah ${verse.verseNumber}" else "سورة ${viewModel.selectedSurah?.nameArabic ?: ""} - آية ${verse.verseNumber}",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.align(Alignment.End)
@@ -3272,7 +3272,8 @@ fun AdhkarScreen(viewModel: QuranViewModel) {
         isEnglish
     ) {
         AdhkarRepository.adhkarList.filter { dhikr ->
-            val matchCategory = viewModel.selectedAdhkarCategory == "All" || viewModel.selectedAdhkarCategory == "الكل" || dhikr.category == viewModel.selectedAdhkarCategory || dhikr.categoryEnglish == viewModel.selectedAdhkarCategory
+            val dhikrEngCategory = AdhkarRepository.getCategoryEnglish(dhikr.category)
+            val matchCategory = viewModel.selectedAdhkarCategory == "All" || viewModel.selectedAdhkarCategory == "الكل" || dhikr.category == viewModel.selectedAdhkarCategory || dhikrEngCategory == viewModel.selectedAdhkarCategory
             val matchQuery = viewModel.adhkarSearchQuery.isEmpty() ||
                     dhikr.text.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
                     dhikr.textEnglish.contains(viewModel.adhkarSearchQuery, ignoreCase = true) ||
@@ -3459,8 +3460,9 @@ fun DhikrItemCard(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
+                    val categoryDisplay = if (isEng) AdhkarRepository.getCategoryEnglish(dhikr.category) else dhikr.category
                     Text(
-                        text = if (isEng && dhikr.categoryEnglish.isNotEmpty()) "📌 ${dhikr.categoryEnglish}" else "📌 ${dhikr.category}",
+                        text = "📌 $categoryDisplay",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
