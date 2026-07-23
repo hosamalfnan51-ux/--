@@ -95,41 +95,54 @@ object PrayerTimesManager {
         lat: Double,
         lng: Double,
         cityName: String = "الموقع الحالي",
-        calendar: Calendar = Calendar.getInstance()
+        calendar: Calendar = Calendar.getInstance(),
+        customTzOffset: Double? = null
     ): PrayerTimesData {
-        val tzOffset = calendar.timeZone.getOffset(calendar.timeInMillis) / 3600000.0
+        val matchedCity = defaultCities.find {
+            it.nameArabic == cityName || it.nameEnglish.equals(cityName, ignoreCase = true) ||
+                    (abs(it.latitude - lat) < 0.15 && abs(it.longitude - lng) < 0.15)
+        }
+
+        val tzOffset = customTzOffset ?: matchedCity?.timeZoneOffsetHours ?: run {
+            if (cityName.contains("GPS") || cityName.contains("الموقع الحالي")) {
+                calendar.timeZone.getOffset(calendar.timeInMillis) / 3600000.0
+            } else {
+                round(lng / 15.0)
+            }
+        }
+
         val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
 
-        // Solar Declination & Equation of Time approximations
-        val b = 2 * Math.PI * (dayOfYear - 81) / 365.0
-        val eqt = 9.87 * sin(2 * b) - 7.53 * cos(b) - 1.5 * sin(b) // Equation of time in minutes
-        val decl = 23.45 * sin(Math.PI / 180 * (360.0 / 365.0 * (dayOfYear - 81))) // Solar declination in degrees
+        // Accurate Solar Declination & Equation of Time
+        val b = 2.0 * Math.PI * (dayOfYear - 81) / 365.0
+        val eqt = 9.87 * sin(2.0 * b) - 7.53 * cos(b) - 1.5 * sin(b) // Equation of time in minutes
+        val decl = 23.45 * sin(2.0 * Math.PI * (dayOfYear - 81) / 365.0) // Solar declination in degrees
 
         // Solar Noon in local time hours
         val noon = 12.0 + tzOffset - (lng / 15.0) - (eqt / 60.0)
 
-        // Helper function for Sun Hour Angle given zenith angle
-        fun hourAngle(angle: Double): Double {
-            val cosH = (cos(Math.toRadians(angle)) - sin(Math.toRadians(lat)) * sin(Math.toRadians(decl))) /
+        // Helper function for Sun Hour Angle given zenith angle in degrees
+        fun hourAngle(zenithAngle: Double): Double {
+            val cosH = (cos(Math.toRadians(zenithAngle)) - sin(Math.toRadians(lat)) * sin(Math.toRadians(decl))) /
                     (cos(Math.toRadians(lat)) * cos(Math.toRadians(decl)))
             val clamped = cosH.coerceIn(-1.0, 1.0)
             return Math.toDegrees(acos(clamped)) / 15.0
         }
 
-        // Zenith angles: Fajr = 18°, Sunrise/Sunset = 90.833°, Isha = 17.5°
-        val fajrH = hourAngle(108.0) // 90 + 18
+        // Zenith angles: Fajr = 108° (18° below horizon), Sunrise/Sunset = 90.833°, Isha = 107.5° (17.5° below horizon)
+        val fajrH = hourAngle(108.0)
         val sunriseH = hourAngle(90.833)
-        val ishaH = hourAngle(107.5) // 90 + 17.5
+        val ishaH = hourAngle(107.5)
 
-        // Asr Calculation (Shafi'i: shadow length = 1 + solar noon shadow)
-        val asrAngle = 90.0 - Math.toDegrees(atan(1.0 + tan(Math.toRadians(abs(lat - decl)))))
-        val asrH = hourAngle(90.0 - asrAngle)
+        // Asr Calculation (Shafi'i/Hanbali/Maliki: shadow length = 1 + solar noon shadow)
+        val asrZenith = 90.0 - Math.toDegrees(atan(1.0 / (1.0 + tan(Math.toRadians(abs(lat - decl))))))
+        val asrH = hourAngle(asrZenith)
 
         val fajrTime = noon - fajrH
         val sunriseTime = noon - sunriseH
-        val dhuhrTime = noon + 0.05 // + 3 mins safety
+        val dhuhrTime = noon + 0.033 // + 2 mins safety
         val asrTime = noon + asrH
-        val maghribTime = noon + sunriseH + 0.05
+        val maghribTime = noon + sunriseH + 0.033
         val ishaTime = noon + ishaH
 
         fun formatHours(hours: Double): String {

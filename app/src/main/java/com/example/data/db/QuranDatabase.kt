@@ -16,7 +16,30 @@ import com.example.data.model.HifzPlan
 import com.example.data.model.HifzProgress
 import com.example.data.model.KhatmaRoom
 import com.example.data.model.ReadingGoalEntity
+import com.example.data.model.SurahHifzEntity
+import com.example.data.model.VerseHifzEntity
 import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface SurahVerseHifzDao {
+    @Query("SELECT * FROM surah_hifz_status ORDER BY surahId ASC")
+    fun getAllSurahHifzStatus(): Flow<List<SurahHifzEntity>>
+
+    @Query("SELECT * FROM surah_hifz_status WHERE surahId = :surahId LIMIT 1")
+    suspend fun getSurahHifzStatus(surahId: Int): SurahHifzEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateSurahHifz(entity: SurahHifzEntity)
+
+    @Query("SELECT * FROM verse_hifz_status WHERE surahId = :surahId ORDER BY verseNumber ASC")
+    fun getVerseHifzStatusForSurah(surahId: Int): Flow<List<VerseHifzEntity>>
+
+    @Query("SELECT * FROM verse_hifz_status WHERE verseKey = :verseKey LIMIT 1")
+    suspend fun getVerseHifzStatus(verseKey: String): VerseHifzEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateVerseHifz(entity: VerseHifzEntity)
+}
 
 @Dao
 interface QuranCacheDao {
@@ -116,13 +139,16 @@ interface KhatmaDao {
         CachedVerseEntity::class,
         CachedTafsirEntity::class,
         ReadingGoalEntity::class,
-        DailyDhikrBookmarkEntity::class
+        DailyDhikrBookmarkEntity::class,
+        SurahHifzEntity::class,
+        VerseHifzEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class QuranDatabase : RoomDatabase() {
     abstract fun hifzDao(): HifzDao
+    abstract fun surahVerseHifzDao(): SurahVerseHifzDao
     abstract fun khatmaDao(): KhatmaDao
     abstract fun quranCacheDao(): QuranCacheDao
     abstract fun readingPlannerDao(): ReadingPlannerDao

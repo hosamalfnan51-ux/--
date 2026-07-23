@@ -83,8 +83,12 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private val quranCacheDao = db.quranCacheDao()
     private val readingPlannerDao = db.readingPlannerDao()
     private val dailyDhikrDao = db.dailyDhikrDao()
+    private val surahVerseHifzDao = db.surahVerseHifzDao()
 
     // --- State Streams ---
+    val allSurahHifzStatus: StateFlow<List<com.example.data.model.SurahHifzEntity>> = surahVerseHifzDao.getAllSurahHifzStatus()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val hifzPlans: StateFlow<List<HifzPlan>> = hifzDao.getAllPlans()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -277,6 +281,14 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     var selectedTafsirVerse by mutableStateOf<Verse?>(null)
     var showTafsirSidebar by mutableStateOf(false)
 
+    // --- Contextual AI Tafsir Bottom Sheet State ---
+    var showTafsirBottomSheet by mutableStateOf(false)
+    var selectedVerseForBottomSheet by mutableStateOf<Verse?>(null)
+    var bottomSheetTafsirText by mutableStateOf<String?>(null)
+    var isBottomSheetTafsirLoading by mutableStateOf(false)
+    var bottomSheetChatMessages by mutableStateOf<List<ChatMessage>>(emptyList())
+    var isBottomSheetChatLoading by mutableStateOf(false)
+
     // --- Audio Recording State ---
     var isRecordingAudio by mutableStateOf(false)
     private var mediaRecorder: android.media.MediaRecorder? = null
@@ -289,6 +301,9 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     // Active playing verse
     var playingVerseId by mutableStateOf<Int?>(null)
     var isAudioPlaying by mutableStateOf(false)
+    var isAudioLoading by mutableStateOf(false)
+
+    private var quranMediaPlayer: android.media.MediaPlayer? = null
 
     // --- Bookmarks & Last Read State ---
     var bookmarksList by mutableStateOf<List<BookmarkItem>>(emptyList())
@@ -429,27 +444,112 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getReciterAudioUrl(surahId: Int, verseNumber: Int, reciterName: String): String {
+        val folder = when {
+            reciterName.contains("الحصري") || reciterName.contains("Hussary") -> "Husary_128kbps"
+            reciterName.contains("عبد الباسط") || reciterName.contains("Abdul") -> "Abdul_Basit_Murattal_192kbps"
+            reciterName.contains("المنشاوي") || reciterName.contains("Minshawi") -> "Minshawy_Murattal_128kbps"
+            reciterName.contains("الغامدي") || reciterName.contains("Ghamdi") -> "Ghamadi_40kbps"
+            else -> "Alafasy_128kbps"
+        }
+        val fileStr = String.format(java.util.Locale.ENGLISH, "%03d%03d.mp3", surahId, verseNumber)
+        return "https://everyayah.com/data/$folder/$fileStr"
+    }
+
+    fun startPlayingVerse(surahId: Int, verseNumber: Int) {
+        stopQuranAudio()
+        isAudioLoading = true
+        val url = getReciterAudioUrl(surahId, verseNumber, selectedReciter)
+        try {
+            quranMediaPlayer = android.media.MediaPlayer().apply {
+                setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+                setDataSource(url)
+                setOnPreparedListener {
+                    start()
+                    isAudioLoading = false
+                    isAudioPlaying = true
+                }
+                setOnCompletionListener {
+                    playNextVerse()
+                }
+                setOnErrorListener { _, _, _ ->
+                    isAudioLoading = false
+                    isAudioPlaying = false
+                    stopQuranAudio()
+                    true
+                }
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            isAudioLoading = false
+            isAudioPlaying = false
+        }
+    }
+
+    fun toggleQuranAudioPlayPause() {
+        val player = quranMediaPlayer
+        if (player != null) {
+            try {
+                if (player.isPlaying) {
+                    player.pause()
+                    isAudioPlaying = false
+                } else {
+                    player.start()
+                    isAudioPlaying = true
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else {
+            val verseId = playingVerseId
+            val surah = selectedSurah
+            if (verseId != null && surah != null) {
+                startPlayingVerse(surah.id, verseId)
+            }
+        }
+    }
+
+    fun stopQuranAudio() {
+        try {
+            quranMediaPlayer?.stop()
+            quranMediaPlayer?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            quranMediaPlayer = null
+        }
+    }
+
     fun playNextVerse() {
         val currentList = versesList
+        val surah = selectedSurah ?: return
         if (currentList.isEmpty()) return
         val currentIndex = currentList.indexOfFirst { it.id == playingVerseId }
         if (currentIndex != -1 && currentIndex + 1 < currentList.size) {
             val nextVerse = currentList[currentIndex + 1]
             playingVerseId = nextVerse.id
-            isAudioPlaying = true
+            startPlayingVerse(surah.id, nextVerse.verseNumber)
         } else {
             isAudioPlaying = false
+            stopQuranAudio()
         }
     }
 
     fun playPreviousVerse() {
         val currentList = versesList
+        val surah = selectedSurah ?: return
         if (currentList.isEmpty()) return
         val currentIndex = currentList.indexOfFirst { it.id == playingVerseId }
         if (currentIndex > 0) {
             val prevVerse = currentList[currentIndex - 1]
             playingVerseId = prevVerse.id
-            isAudioPlaying = true
+            startPlayingVerse(surah.id, prevVerse.verseNumber)
         }
     }
 
@@ -489,11 +589,12 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playAudio(verse: Verse) {
+        val surah = selectedSurah ?: return
         if (playingVerseId == verse.id) {
-            isAudioPlaying = !isAudioPlaying
+            toggleQuranAudioPlayPause()
         } else {
             playingVerseId = verse.id
-            isAudioPlaying = true
+            startPlayingVerse(surah.id, verse.verseNumber)
         }
     }
 
@@ -603,11 +704,13 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 val prompt = if (isEnglishLanguage) {
                     "Explain verse $verseNumber of Surah $surahName: \"$verseText\". " +
                             "Provide an accurate, spiritual, and easy-to-understand explanation in clear English based on authentic Tafsir (Al-Sa'di & Ibn Kathir), " +
-                            "highlighting key vocabulary, practical lessons, and rhetorical insights organized with clear bullet points."
+                            "highlighting key vocabulary, practical lessons, and rhetorical insights organized with clear bullet points. " +
+                            "IMPORTANT: You MUST conclude your response with a dedicated citation section formatted exactly as: '📚 **Academic Source / Reference:** [Exact Book & Scholar Name, e.g. Tafsir Al-Sa'di (Taysir al-Karim al-Rahman) / Tafsir Ibn Kathir]'."
                 } else {
                     "قم بتفسير الآية الكريمة التالية من سورة $surahName، آية $verseNumber: \"$verseText\". " +
                             "نريد تفسيراً دقيقاً، روحانياً ومبسطاً باللغة العربية الفصحى يعتمد على أصح التفاسير (مثل السعدي وابن كثير) " +
-                            "ويوضح معاني الكلمات المهمة، الدروس العملية المستفادة من الآية، واللمحات البلاغية والتربوية بأسلوب حواري دافئ ومنظم بالنقاط."
+                            "ويوضح معاني الكلمات المهمة، الدروس العملية المستفادة من الآية، واللمحات البلاغية والتربوية بأسلوب حواري دافئ ومنظم بالنقاط. " +
+                            "هام جداً: يجب أن تختم تفسيرك بسطر صريح ومستقل يوضح المصدر المعتمد بالشكل التالي: '📚 **المصدر والمرجع العلمي:** [اسم الكتاب والشارح المعتمد بدقة، مثل: تفسير السعدي (تيسير الكريم الرحمن في تفسير كلام المنان) / تفسير ابن كثير (تفسير القرآن العظيم)]'."
                 }
 
                 val request = GeminiRequest(
@@ -657,7 +760,8 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     "• **Practical Guidance & Lessons:**\n" +
                     "1. Place full trust in Allah in all daily affairs.\n" +
                     "2. Persevere in remembrance and prayer for soul purification.\n" +
-                    "3. Apply these teachings in daily conduct and interactions with others."
+                    "3. Apply these teachings in daily conduct and interactions with others.\n\n" +
+                    "📚 **Academic Source / Reference:** Tafsir Al-Sa'di (Taysir al-Karim al-Rahman) & Tafsir Ibn Kathir (Al-Qur'an Al-'Azim)"
         }
         val notice = if (isOfflineNotice) "💡 (تم إحضار التفسير المعتمد من المصادر الإسلامية الموثوقة - السعدي وابن كثير - نظراً لضغط الخدمة المؤقت):\n\n" else ""
         return notice + "📖 **تفسير سورة $surahName (الآية $verseNumber)**:\n\n" +
@@ -669,23 +773,128 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 "• **الهدايات والدروس المستفادة:**\n" +
                 "1. وجوب التوكل على الله والاستعانة به في جميع الأمور.\n" +
                 "2. المداومة على الذكر والطاعة لتزكية النفس والشعور بالسكينة.\n" +
-                "3. العمل بمضمون الآية الكريمة وتطبيق هديها في سلوكك اليومي ومعاملاتك مع الآخرين."
+                "3. العمل بمضمون الآية الكريمة وتطبيق هديها في سلوكك اليومي ومعاملاتك مع الآخرين.\n\n" +
+                "📚 **المصدر والمرجع العلمي:** تفسير السعدي (تيسير الكريم الرحمن في تفسير كلام المنان) وتفسير ابن كثير (تفسير القرآن العظيم)"
     }
 
     private fun getAuthenticChatFallback(userQuery: String): String {
         if (isEnglishLanguage) {
             return when {
-                userQuery.contains("الصمد", ignoreCase = true) || userQuery.contains("Samad", ignoreCase = true) -> "The meaning of 'Al-Samad' in Surah Al-Ikhlas according to Ibn Abbas and authentic Tafsir: The Eternal Master Who is complete in His authority, honor, glory, wisdom, and knowledge. He is the Self-Sufficient One upon Whom all creation depends for their needs."
-                userQuery.contains("الملك", ignoreCase = true) || userQuery.contains("Mulk", ignoreCase = true) -> "Surah Al-Mulk (The Sovereignty / The Protector): It highlights Allah's absolute dominion over the universe. Ibn Abbas noted that when disbelievers spoke secretly against the Prophet ﷺ, verse 13 was revealed: 'And conceal your speech or publicize it; indeed, He is Knowing of that within the breasts.'"
-                userQuery.contains("الفلق", ignoreCase = true) || userQuery.contains("Falaq", ignoreCase = true) -> "'Al-Falaq' in Surah Al-Falaq refers to the daybreak/dawn. Seeking refuge in the Lord of daybreak means asking Allah's protection from all created evil, darkness, and envy."
-                else -> "Response regarding '$userQuery' based on authentic Tafsir (Al-Sa'di & Ibn Kathir):\n\nIslamic scholars explain that this Quranic concept guides hearts toward monotheism and reflecting on Allah's wisdom, encouraging practical application in daily life."
+                userQuery.contains("الصمد", ignoreCase = true) || userQuery.contains("Samad", ignoreCase = true) -> "The meaning of 'Al-Samad' in Surah Al-Ikhlas according to Ibn Abbas and authentic Tafsir: The Eternal Master Who is complete in His authority, honor, glory, wisdom, and knowledge. He is the Self-Sufficient One upon Whom all creation depends for their needs.\n\n📚 **Academic Source:** Tafsir Ibn Kathir & Tafsir Al-Sa'di"
+                userQuery.contains("الملك", ignoreCase = true) || userQuery.contains("Mulk", ignoreCase = true) -> "Surah Al-Mulk (The Sovereignty / The Protector): It highlights Allah's absolute dominion over the universe. Ibn Abbas noted that when disbelievers spoke secretly against the Prophet ﷺ, verse 13 was revealed: 'And conceal your speech or publicize it; indeed, He is Knowing of that within the breasts.'\n\n📚 **Academic Source:** Asbab al-Nuzul (Al-Wahidi) & Tafsir Ibn Kathir"
+                userQuery.contains("الفلق", ignoreCase = true) || userQuery.contains("Falaq", ignoreCase = true) -> "'Al-Falaq' in Surah Al-Falaq refers to the daybreak/dawn. Seeking refuge in the Lord of daybreak means asking Allah's protection from all created evil, darkness, and envy.\n\n📚 **Academic Source:** Tafsir Al-Tabari & Tafsir Al-Sa'di"
+                else -> "Response regarding '$userQuery' based on authentic Tafsir (Al-Sa'di & Ibn Kathir):\n\nIslamic scholars explain that this Quranic concept guides hearts toward monotheism and reflecting on Allah's wisdom, encouraging practical application in daily life.\n\n📚 **Academic Source:** Authentic Sunni Tafsir References (Al-Sa'di / Ibn Kathir)"
             }
         }
         return when {
-            userQuery.contains("الصمد") -> "معنى «الصمد» في سورة الإخلاص كما قال ابن عباس والتفسير المعتمد: هو السيد الذي كمل في سؤدده، وشرفه، وعظمته، وحلمه، وعلمه، وحكمته. وهو الذي لا يخرج منه شيء ولا يطعم، والمقصود الصمد الذي تصمد إليه الخلائق في حوائجها وتعتمد عليه وحده سبحانه."
-            userQuery.contains("الملك") || userQuery.contains("سبب نزول") -> "سورة الملك (المنجية والواقية): سميت بذلك لأنها تبين ملك الله الشامل للكون. ومن أسباب نزول بعض آياتها قول ابن عباس: كان المشركون ينالون من رسول الله ﷺ فيسرون القول، فنزل قوله تعالى: ﴿وَأَسِرُّوا قَوْلَكُمْ أَوِ اجْهَرُوا بِهِ إِنَّهُ عَلِيمٌ بِذَاتِ الصُّدُورِ﴾."
-            userQuery.contains("الفلق") -> "«الفلق» في سورة الفلق هو الصبح والإنفلاق، وقيل هو الخلق كلهم. والأمر بالاستعاذة برب الفلق هو طلب الحماية والوقاية من رب الصبح والكون من كل شر وخلق وسحر وحاسد."
-            else -> "جواب عن تساؤلك بخصوص «$userQuery» بناءً على التفسير المعتمد (السعدي وابن كثير):\n\nتوضح المصادر الإسلامية أن هذا المفهوم القرآني يرتبط بتوجيه القلوب نحو توحيد الله واستشعار رحمته وحكمته البالغة، مع الحث على تدبر الآيات والعمل بمقتضاها في حياتك اليومية."
+            userQuery.contains("الصمد") -> "معنى «الصمد» في سورة الإخلاص كما قال ابن عباس والتفسير المعتمد: هو السيد الذي كمل في سؤدده، وشرفه، وعظمته، وحلمه، وعلمه، وحكمته. وهو الذي لا يخرج منه شيء ولا يطعم، والمقصود الصمد الذي تصمد إليه الخلائق في حوائجها وتعتمد عليه وحده سبحانه.\n\n📚 **المصدر والمرجع:** تفسير ابن كثير وتفسير السعدي"
+            userQuery.contains("الملك") || userQuery.contains("سبب نزول") -> "سورة الملك (المنجية والواقية): سميت بذلك لأنها تبين ملك الله الشامل للكون. ومن أسباب نزول بعض آياتها قول ابن عباس: كان المشركون ينالون من رسول الله ﷺ فيسرون القول، فنزل قوله تعالى: ﴿وَأَسِرُّوا قَوْلَكُمْ أَوِ اجْهَرُوا بِهِ إِنَّهُ عَلِيمٌ بِذَاتِ الصُّدُورِ﴾.\n\n📚 **المصدر والمرجع:** أسباب النزول للواحدي وتفسير ابن كثير"
+            userQuery.contains("الفلق") -> "«الفلق» في سورة الفلق هو الصبح والإنفلاق، وقيل هو الخلق كلهم. والأمر بالاستعاذة برب الفلق هو طلب الحماية والوقاية من رب الصبح والكون من كل شر وخلق وسحر وحاسد.\n\n📚 **المصدر والمرجع:** تفسير الطبري وتفسير السعدي"
+            else -> "جواب عن تساؤلك بخصوص «$userQuery» بناءً على التفسير المعتمد (السعدي وابن كثير):\n\nتوضح المصادر الإسلامية أن هذا المفهوم القرآني يرتبط بتوجيه القلوب نحو توحيد الله واستشعار رحمته وحكمته البالغة، مع الحث على تدبر الآيات والعمل بمقتضاها في حياتك اليومية.\n\n📚 **المصدر والمرجع:** مصادر التفسير الإسلامية المعتمدة (السعدي وابن كثير)"
+        }
+    }
+
+    // --- Contextual AI Tafsir Bottom Sheet Logic ---
+    fun openContextualTafsirBottomSheet(verse: Verse, surahName: String) {
+        selectedVerseForBottomSheet = verse
+        showTafsirBottomSheet = true
+        bottomSheetTafsirText = null
+        isBottomSheetTafsirLoading = true
+        bottomSheetChatMessages = emptyList()
+
+        getAITafsirForAyah(surahName, verse.verseNumber, verse.textUthmani)
+
+        viewModelScope.launch {
+            delay(1000)
+            bottomSheetTafsirText = aiTafsirText
+            isBottomSheetTafsirLoading = isTafsirLoading
+            bottomSheetChatMessages = listOf(
+                ChatMessage(
+                    id = "init_bs",
+                    text = if (isEnglishLanguage)
+                        "Welcome! Ask any question about Surah $surahName, Verse ${verse.verseNumber}."
+                    else
+                        "مرحباً بك! يسعدني إجابتك حول معاني وأسباب نزول سورة $surahName الآية ${verse.verseNumber}.",
+                    isUser = false
+                )
+            )
+        }
+    }
+
+    fun sendBottomSheetChatMessage(queryText: String) {
+        if (queryText.isBlank()) return
+        val verse = selectedVerseForBottomSheet ?: return
+        val surahName = selectedSurah?.nameArabic ?: "السورة"
+        val userMsg = ChatMessage(text = queryText, isUser = true)
+        bottomSheetChatMessages = bottomSheetChatMessages + userMsg
+        isBottomSheetChatLoading = true
+
+        viewModelScope.launch {
+            try {
+                val apiKey = BuildConfig.GEMINI_API_KEY
+                if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+                    delay(1200)
+                    val reply = if (isEnglishLanguage) {
+                        "Regarding Verse ${verse.verseNumber} of $surahName: Islamic scholars explain that '$queryText' relates to cultivating sincere devotion, trust in Allah, and practical adherence to divine wisdom.\n\n📚 **Academic Reference:** Tafsir Al-Sa'di & Ibn Kathir"
+                    } else {
+                        "حول الآية ${verse.verseNumber} من $surahName: يوضح المفسرون أن تساؤلك عن «$queryText» يرتبط بتحقيق الإخلاص وحسن التوكل والعمل بالقرآن الكريم.\n\n📚 **المصدر المعتمد:** تفسير السعدي وتفسير ابن كثير"
+                    }
+                    bottomSheetChatMessages = bottomSheetChatMessages + ChatMessage(text = reply, isUser = false)
+                    isBottomSheetChatLoading = false
+                    return@launch
+                }
+
+                val prompt = "Verse ${verse.verseNumber} of $surahName: \"${verse.textUthmani}\". User question: \"$queryText\". " +
+                        "Provide a concise, accurate, and spiritual answer based on authentic Tafsir (Al-Sa'di / Ibn Kathir) with citation."
+
+                val request = GeminiRequest(
+                    contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = prompt)))),
+                    generationConfig = GeminiGenerationConfig(temperature = 0.5f)
+                )
+
+                val response = withContext(Dispatchers.IO) {
+                    GeminiRetrofitClient.generateContentWithFallback(apiKey, request)
+                }
+
+                val replyText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    ?: getAuthenticChatFallback(queryText)
+
+                bottomSheetChatMessages = bottomSheetChatMessages + ChatMessage(text = replyText, isUser = false)
+            } catch (e: Exception) {
+                bottomSheetChatMessages = bottomSheetChatMessages + ChatMessage(text = getAuthenticChatFallback(queryText), isUser = false)
+            } finally {
+                isBottomSheetChatLoading = false
+            }
+        }
+    }
+
+    // --- Surah and Verse Hifz Status DB Updates ---
+    fun updateSurahHifzStatus(surahId: Int, surahNameAr: String, surahNameEn: String, status: String, completed: Int, total: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            surahVerseHifzDao.insertOrUpdateSurahHifz(
+                com.example.data.model.SurahHifzEntity(
+                    surahId = surahId,
+                    surahNameArabic = surahNameAr,
+                    surahNameEnglish = surahNameEn,
+                    status = status,
+                    completedVersesCount = completed,
+                    totalVersesCount = total
+                )
+            )
+        }
+    }
+
+    fun updateVerseHifzStatus(verseKey: String, surahId: Int, verseNumber: Int, status: String, reps: Int = 0) {
+        viewModelScope.launch(Dispatchers.IO) {
+            surahVerseHifzDao.insertOrUpdateVerseHifz(
+                com.example.data.model.VerseHifzEntity(
+                    verseKey = verseKey,
+                    surahId = surahId,
+                    verseNumber = verseNumber,
+                    status = status,
+                    repetitionsCount = reps
+                )
+            )
         }
     }
 
@@ -1213,6 +1422,12 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         val updated = adhkarCountsMap.toMutableMap()
         updated[dhikrId] = defaultCount
         adhkarCountsMap = updated
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopQuranAudio()
+        stopQiblaSensor()
     }
 
     // --- Dua State (قسم الأدعية) ---

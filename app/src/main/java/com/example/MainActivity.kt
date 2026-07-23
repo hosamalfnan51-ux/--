@@ -306,6 +306,20 @@ fun MainAppScreen(
                 }
             }
 
+            if (viewModel.showTafsirBottomSheet) {
+                com.example.ui.components.ContextualTafsirBottomSheet(
+                    verse = viewModel.selectedVerseForBottomSheet,
+                    surahName = viewModel.selectedSurah?.nameArabic ?: "السورة",
+                    tafsirText = viewModel.bottomSheetTafsirText,
+                    isLoadingTafsir = viewModel.isBottomSheetTafsirLoading,
+                    chatMessages = viewModel.bottomSheetChatMessages,
+                    isChatLoading = viewModel.isBottomSheetChatLoading,
+                    isEnglish = viewModel.isEnglishLanguage,
+                    onDismiss = { viewModel.showTafsirBottomSheet = false },
+                    onSendMessage = { query -> viewModel.sendBottomSheetChatMessage(query) }
+                )
+            }
+
             if (viewModel.showAboutDialog) {
                 AboutAppDialog(onDismiss = { viewModel.showAboutDialog = false })
             }
@@ -715,12 +729,7 @@ fun MushafScreen(viewModel: QuranViewModel) {
                                 selectedWordDetails = getWordSemanticDetail(word)
                             },
                             onTafsirClick = {
-                                viewModel.selectedTafsirVerse = verse
-                                viewModel.getAITafsirForAyah(
-                                    surahName = activeSurah.nameArabic,
-                                    verseNumber = verse.verseNumber,
-                                    verseText = verse.textUthmani
-                                )
+                                viewModel.openContextualTafsirBottomSheet(verse, activeSurah.nameArabic)
                             },
                             onBookmarkClick = {
                                 viewModel.toggleBookmark(
@@ -1020,7 +1029,44 @@ fun TafsirSidebarContent(viewModel: QuranViewModel, onClose: () -> Unit) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Academic Reference & Source Credibility Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Academic Source",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (isEng) "Academic Source & Citation:" else "المصدر التفسيري المعتمد والموثوق:",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = if (isEng) "📚 Tafsir Al-Sa'di (Taysir al-Karim al-Rahman) • Tafsir Ibn Kathir" else "📚 تفسير السعدي (تيسير الكريم الرحمن) • تفسير ابن كثير (تفسير القرآن العظيم)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (viewModel.isTafsirLoading) {
                     Column(
@@ -1305,47 +1351,14 @@ fun AIRecitationAndSearchScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Microphone interaction button
-                    if (viewModel.isRecordingEvaluation) {
-                        // Live wave animation
-                        Text(text = if (isEng) "Analyzing pronunciation & Tajweed rules..." else "جارٍ تحليل مخارج الحروف وقواعد التجويد بذكاء...", fontSize = 12.sp, color = TajweedYellow)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AnimatedWaveform()
-                    } else if (viewModel.isRecordingAudio) {
-                        // Recording state
-                        Text(text = if (isEng) "Recording... Tap button to stop and evaluate" else "التسجيل مستمر... اضغط على الزر للإيقاف والتحليل", fontSize = 12.sp, color = TajweedRed, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                viewModel.stopRecitationRecordingAndEvaluate(selectedCoachVerseText)
-                            },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = TajweedRed),
-                            modifier = Modifier
-                                .size(72.dp)
-                                .testTag("coach_stop_button")
-                        ) {
-                            Icon(imageVector = Icons.Default.Stop, contentDescription = "Stop recording", modifier = Modifier.size(36.dp))
+                    // Real Native Recording Card Component with Waveform & Controls
+                    com.example.ui.components.RecitationRecorderCard(
+                        verseText = selectedCoachVerseText,
+                        isEnglish = isEng,
+                        onEvaluateRecitation = {
+                            viewModel.stopRecitationRecordingAndEvaluate(selectedCoachVerseText)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = if (isEng) "Recording your recitation..." else "جارٍ تسجيل تلاوتك الفعلية...", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
-                    } else {
-                        Button(
-                            onClick = {
-                                onRequestPermission()
-                                viewModel.startRecitationRecording(selectedCoachVerseText)
-                            },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .size(72.dp)
-                                .testTag("coach_record_button")
-                        ) {
-                            Icon(imageVector = Icons.Default.Mic, contentDescription = "Record", modifier = Modifier.size(36.dp))
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = if (isEng) "Tap microphone to start hands-free recitation coaching" else "انقر للبدء بتسجيل تلاوتك الفردية", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
-                    }
+                    )
 
                     // Display Recitation Analysis Evaluation
                     viewModel.recitationEvaluation?.let { evaluation ->
@@ -2231,13 +2244,40 @@ fun ChatBubble(msg: ChatMessage) {
             colors = CardDefaults.cardColors(containerColor = bubbleColor),
             modifier = paddingSide
         ) {
-            Text(
-                text = msg.text,
-                color = textColor,
-                fontSize = 13.sp,
-                lineHeight = 20.sp,
-                modifier = Modifier.padding(12.dp)
-            )
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = msg.text,
+                    color = textColor,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                )
+                if (!msg.isUser) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Citation Source",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "المصدر والتفسير المعتمد: السعدي وابن كثير",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -3546,6 +3586,14 @@ fun ReadingPlannerScreen(viewModel: QuranViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Custom Compose Canvas Chart for Memorization Progress & Streaks
+        com.example.ui.components.MemorizationProgressCanvasChart(
+            readingGoal = goal,
+            isEnglish = isEng
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Configure New Goal Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -3999,7 +4047,14 @@ fun SettingsDialog(
                 reciters.forEach { reciter ->
                     val isSelected = viewModel.selectedReciter == reciter || (isEng && viewModel.selectedReciter.contains("مشاري") && reciter.contains("Mishary"))
                     Card(
-                        onClick = { viewModel.selectedReciter = reciter },
+                        onClick = {
+                            viewModel.selectedReciter = reciter
+                            val currentVerseId = viewModel.playingVerseId
+                            val currentSurah = viewModel.selectedSurah
+                            if (currentVerseId != null && currentSurah != null && viewModel.isAudioPlaying) {
+                                viewModel.startPlayingVerse(currentSurah.id, currentVerseId)
+                            }
+                        },
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
@@ -4073,16 +4128,24 @@ fun BottomAudioPlayerBar(
                     Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "Previous Verse", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 IconButton(
-                    onClick = { viewModel.isAudioPlaying = !viewModel.isAudioPlaying },
+                    onClick = { viewModel.toggleQuranAudioPlayPause() },
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                         .size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
+                    if (viewModel.isAudioLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (viewModel.isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
                 IconButton(onClick = { viewModel.playNextVerse() }) {
                     Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Next Verse", tint = MaterialTheme.colorScheme.onPrimaryContainer)
