@@ -80,6 +80,9 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private val db = QuranDatabase.getDatabase(application)
     private val hifzDao = db.hifzDao()
     private val khatmaDao = db.khatmaDao()
+    private val quranCacheDao = db.quranCacheDao()
+    private val readingPlannerDao = db.readingPlannerDao()
+    private val dailyDhikrDao = db.dailyDhikrDao()
 
     // --- State Streams ---
     val hifzPlans: StateFlow<List<HifzPlan>> = hifzDao.getAllPlans()
@@ -90,6 +93,171 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     val allProgress: StateFlow<List<HifzProgress>> = hifzDao.getAllProgress()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val readingGoal: StateFlow<com.example.data.model.ReadingGoalEntity?> = readingPlannerDao.getReadingGoalFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val dailyDhikrBookmarks: StateFlow<List<com.example.data.model.DailyDhikrBookmarkEntity>> = dailyDhikrDao.getAllBookmarks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- Prayer Times & Qibla State ---
+    var selectedCityName by mutableStateOf("مكة المكرمة")
+    var selectedLat by mutableStateOf(21.4225)
+    var selectedLng by mutableStateOf(39.8262)
+
+    var selectedMuezzinVoiceId by mutableStateOf("makkah")
+    var enablePrePrayerWarning by mutableStateOf(true)
+
+    private val qiblaSensorManager = com.example.data.repository.QiblaSensorManager(application)
+    val deviceAzimuthDegree: StateFlow<Float> = qiblaSensorManager.azimuthDegree
+    val hasSensorSupport: StateFlow<Boolean> = qiblaSensorManager.hasSensorSupport
+
+    fun startQiblaSensor() {
+        qiblaSensorManager.registerListeners()
+    }
+
+    fun stopQiblaSensor() {
+        qiblaSensorManager.unregisterListeners()
+    }
+
+    var prayerTimesData by mutableStateOf(
+        com.example.data.repository.PrayerTimesManager.calculatePrayerTimes(21.4225, 39.8262, "مكة المكرمة")
+    )
+        private set
+
+    var prayerNotificationEnabledMap by mutableStateOf(
+        mapOf("Fajr" to true, "Dhuhr" to true, "Asr" to true, "Maghrib" to true, "Isha" to true)
+    )
+
+    fun updateLocationAndPrayerTimes(lat: Double, lng: Double, cityName: String, context: android.content.Context? = null) {
+        selectedLat = lat
+        selectedLng = lng
+        selectedCityName = cityName
+        prayerTimesData = com.example.data.repository.PrayerTimesManager.calculatePrayerTimes(lat, lng, cityName)
+        if (context != null) {
+            scheduleBackgroundPrayerNotifications(context)
+        }
+    }
+
+    fun fetchLocationWithGPS(context: android.content.Context, onResult: (Boolean, String) -> Unit) {
+        com.example.data.repository.FusedLocationClientHelper.fetchCurrentLocation(
+            context = context,
+            onLocationFound = { lat, lng ->
+                updateLocationAndPrayerTimes(lat, lng, if (isEnglishLanguage) "Current GPS Location" else "الموقع الحالي (GPS)", context)
+                onResult(true, if (isEnglishLanguage) "Location updated from GPS" else "تم تحديث أوقات الصلاة من نظام GPS")
+            },
+            onError = { errMsg ->
+                onResult(false, errMsg)
+            }
+        )
+    }
+
+    fun scheduleBackgroundPrayerNotifications(context: android.content.Context) {
+        val now = System.currentTimeMillis()
+        val activeVoice = com.example.data.repository.PrayerNotificationHelper.muezzinVoices.find { it.id == selectedMuezzinVoiceId }
+        val audioUrl = activeVoice?.audioUrl ?: ""
+
+        prayerTimesData.list.forEach { item ->
+            if (item.nameEnglish == "Sunrise") return@forEach
+            val isEnabled = prayerNotificationEnabledMap[item.nameEnglish] ?: true
+            if (!isEnabled) return@forEach
+
+            val delayMs = item.timestamp - now
+            if (delayMs > 0) {
+                com.example.data.repository.PrayerNotificationWorker.schedulePrayerWorker(
+                    context = context,
+                    prayerNameAr = item.nameArabic,
+                    prayerNameEn = item.nameEnglish,
+                    delayMs = delayMs,
+                    isPreReminder = false,
+                    isEnglish = isEnglishLanguage,
+                    audioUrl = audioUrl
+                )
+
+                if (enablePrePrayerWarning) {
+                    val preDelayMs = delayMs - (5 * 60 * 1000)
+                    if (preDelayMs > 0) {
+                        com.example.data.repository.PrayerNotificationWorker.schedulePrayerWorker(
+                            context = context,
+                            prayerNameAr = item.nameArabic,
+                            prayerNameEn = item.nameEnglish,
+                            delayMs = preDelayMs,
+                            isPreReminder = true,
+                            isEnglish = isEnglishLanguage,
+                            audioUrl = audioUrl
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun togglePrayerNotification(prayerKey: String, context: android.content.Context? = null) {
+        val current = prayerNotificationEnabledMap[prayerKey] ?: true
+        val updated = prayerNotificationEnabledMap.toMutableMap()
+        updated[prayerKey] = !current
+        prayerNotificationEnabledMap = updated
+        if (context != null) {
+            scheduleBackgroundPrayerNotifications(context)
+        }
+    }
+
+    // --- Daily Dhikr State ---
+    val todayDhikr = com.example.data.repository.DailyDhikrRepository.getTodayDhikr()
+
+    fun toggleDailyDhikrBookmark(dhikrId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (dailyDhikrDao.isBookmarked(dhikrId)) {
+                dailyDhikrDao.removeBookmark(dhikrId)
+            } else {
+                dailyDhikrDao.addBookmark(com.example.data.model.DailyDhikrBookmarkEntity(dhikrId))
+            }
+        }
+    }
+
+    fun isDailyDhikrBookmarked(dhikrId: Int): Boolean {
+        return dailyDhikrBookmarks.value.any { it.dhikrId == dhikrId }
+    }
+
+    // --- Reading Planner (Quran Khatma Goal) Actions ---
+    fun createOrUpdateReadingGoal(targetDays: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val targetCompletion = now + targetDays * 24L * 60 * 60 * 1000
+            val currentGoal = readingPlannerDao.getReadingGoal()
+            val newGoal = com.example.data.model.ReadingGoalEntity(
+                id = 1,
+                targetDays = targetDays,
+                startDate = now,
+                targetCompletionDate = targetCompletion,
+                pagesCompleted = currentGoal?.pagesCompleted ?: 0,
+                currentStreakDays = currentGoal?.currentStreakDays ?: 1,
+                lastReadDateTimestamp = now,
+                isCompleted = false
+            )
+            readingPlannerDao.insertOrUpdateGoal(newGoal)
+        }
+    }
+
+    fun addCompletedPagesRead(pagesToAdd: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentGoal = readingPlannerDao.getReadingGoal() ?: com.example.data.model.ReadingGoalEntity(
+                id = 1,
+                targetDays = 30,
+                startDate = System.currentTimeMillis(),
+                targetCompletionDate = System.currentTimeMillis() + 30 * 24L * 60 * 60 * 1000,
+                pagesCompleted = 0
+            )
+            val newPages = (currentGoal.pagesCompleted + pagesToAdd).coerceAtMost(604)
+            val isDone = newPages >= 604
+            val updated = currentGoal.copy(
+                pagesCompleted = newPages,
+                lastReadDateTimestamp = System.currentTimeMillis(),
+                isCompleted = isDone
+            )
+            readingPlannerDao.insertOrUpdateGoal(updated)
+        }
+    }
 
     // --- UI State Variables ---
     var selectedSurah by mutableStateOf<Surah?>(null)
@@ -290,7 +458,32 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         isVersesLoading = true
         versesList = emptyList()
         viewModelScope.launch {
-            versesList = QuranRepository.getVerses(surah.id)
+            val cached = quranCacheDao.getVersesForSurah(surah.id)
+            if (cached.isNotEmpty()) {
+                versesList = cached.map {
+                    Verse(
+                        id = it.verseNumber,
+                        verseNumber = it.verseNumber,
+                        textUthmani = it.textUthmani,
+                        textIndopak = it.textIndopak,
+                        translation = it.translation,
+                        audioUrl = it.audioUrl
+                    )
+                }
+            } else {
+                val fetched = QuranRepository.getVerses(surah.id)
+                versesList = fetched
+                quranCacheDao.insertVerses(fetched.map {
+                    com.example.data.model.CachedVerseEntity(
+                        surahId = surah.id,
+                        verseNumber = it.verseNumber,
+                        textUthmani = it.textUthmani,
+                        textIndopak = it.textIndopak,
+                        translation = it.translation,
+                        audioUrl = it.audioUrl
+                    )
+                })
+            }
             isVersesLoading = false
         }
     }
@@ -375,13 +568,34 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         isTafsirLoading = true
         aiTafsirText = null
         showTafsirSidebar = true
+
+        val cacheId = "tafsir_${surahName}_${verseNumber}_${if (isEnglishLanguage) "en" else "ar"}"
         
         viewModelScope.launch {
             try {
+                val cached = quranCacheDao.getCachedTafsir(cacheId)
+                if (cached != null) {
+                    aiTafsirText = cached.tafsirText
+                    isTafsirLoading = false
+                    return@launch
+                }
+
                 val apiKey = BuildConfig.GEMINI_API_KEY
                 if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
                     delay(1200)
-                    aiTafsirText = getAuthenticFallbackTafsir(surahName, verseNumber, verseText)
+                    val resultText = getAuthenticFallbackTafsir(surahName, verseNumber, verseText)
+                    aiTafsirText = resultText
+                    quranCacheDao.insertTafsir(
+                        com.example.data.model.CachedTafsirEntity(
+                            id = cacheId,
+                            surahId = selectedSurah?.id ?: 1,
+                            verseNumber = verseNumber,
+                            surahName = surahName,
+                            verseText = verseText,
+                            tafsirText = resultText,
+                            isEnglish = isEnglishLanguage
+                        )
+                    )
                     isTafsirLoading = false
                     return@launch
                 }
@@ -405,11 +619,26 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     GeminiRetrofitClient.generateContentWithFallback(apiKey, request)
                 }
 
-                aiTafsirText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                val resultText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                     ?: getAuthenticFallbackTafsir(surahName, verseNumber, verseText)
+                
+                aiTafsirText = resultText
+
+                quranCacheDao.insertTafsir(
+                    com.example.data.model.CachedTafsirEntity(
+                        id = cacheId,
+                        surahId = selectedSurah?.id ?: 1,
+                        verseNumber = verseNumber,
+                        surahName = surahName,
+                        verseText = verseText,
+                        tafsirText = resultText,
+                        isEnglish = isEnglishLanguage
+                    )
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
-                aiTafsirText = getAuthenticFallbackTafsir(surahName, verseNumber, verseText, isOfflineNotice = true)
+                val resultText = getAuthenticFallbackTafsir(surahName, verseNumber, verseText, isOfflineNotice = true)
+                aiTafsirText = resultText
             } finally {
                 isTafsirLoading = false
             }

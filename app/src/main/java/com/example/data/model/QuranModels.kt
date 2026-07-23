@@ -45,6 +45,48 @@ data class KhatmaRoom(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "cached_verses")
+data class CachedVerseEntity(
+    @PrimaryKey(autoGenerate = true) val cacheId: Int = 0,
+    val surahId: Int,
+    val verseNumber: Int,
+    val textUthmani: String,
+    val textIndopak: String = "",
+    val translation: String = "",
+    val audioUrl: String = "",
+    val cachedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "cached_tafsir")
+data class CachedTafsirEntity(
+    @PrimaryKey val id: String, // e.g., "surah_1_verse_1_en" or "surah_1_verse_1_ar"
+    val surahId: Int,
+    val verseNumber: Int,
+    val surahName: String,
+    val verseText: String,
+    val tafsirText: String,
+    val isEnglish: Boolean,
+    val cachedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "reading_goals")
+data class ReadingGoalEntity(
+    @PrimaryKey val id: Int = 1,
+    val targetDays: Int,
+    val startDate: Long,
+    val targetCompletionDate: Long,
+    val pagesCompleted: Int = 0,
+    val currentStreakDays: Int = 0,
+    val lastReadDateTimestamp: Long = 0,
+    val isCompleted: Boolean = false
+)
+
+@Entity(tableName = "daily_dhikr_bookmarks")
+data class DailyDhikrBookmarkEntity(
+    @PrimaryKey val dhikrId: Int,
+    val dateBookmarked: Long = System.currentTimeMillis()
+)
+
 data class Surah(
     val id: Int,
     val nameArabic: String,

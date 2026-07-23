@@ -9,10 +9,56 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import com.example.data.model.CachedTafsirEntity
+import com.example.data.model.CachedVerseEntity
+import com.example.data.model.DailyDhikrBookmarkEntity
 import com.example.data.model.HifzPlan
 import com.example.data.model.HifzProgress
 import com.example.data.model.KhatmaRoom
+import com.example.data.model.ReadingGoalEntity
 import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface QuranCacheDao {
+    @Query("SELECT * FROM cached_verses WHERE surahId = :surahId ORDER BY verseNumber ASC")
+    suspend fun getVersesForSurah(surahId: Int): List<CachedVerseEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVerses(verses: List<CachedVerseEntity>)
+
+    @Query("SELECT * FROM cached_tafsir WHERE id = :id LIMIT 1")
+    suspend fun getCachedTafsir(id: String): CachedTafsirEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTafsir(tafsir: CachedTafsirEntity)
+}
+
+@Dao
+interface ReadingPlannerDao {
+    @Query("SELECT * FROM reading_goals WHERE id = 1 LIMIT 1")
+    fun getReadingGoalFlow(): Flow<ReadingGoalEntity?>
+
+    @Query("SELECT * FROM reading_goals WHERE id = 1 LIMIT 1")
+    suspend fun getReadingGoal(): ReadingGoalEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateGoal(goal: ReadingGoalEntity)
+}
+
+@Dao
+interface DailyDhikrDao {
+    @Query("SELECT * FROM daily_dhikr_bookmarks")
+    fun getAllBookmarks(): Flow<List<DailyDhikrBookmarkEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun addBookmark(bookmark: DailyDhikrBookmarkEntity)
+
+    @Query("DELETE FROM daily_dhikr_bookmarks WHERE dhikrId = :dhikrId")
+    suspend fun removeBookmark(dhikrId: Int)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM daily_dhikr_bookmarks WHERE dhikrId = :dhikrId)")
+    suspend fun isBookmarked(dhikrId: Int): Boolean
+}
 
 @Dao
 interface HifzDao {
@@ -62,10 +108,25 @@ interface KhatmaDao {
     suspend fun deleteKhatma(id: String)
 }
 
-@Database(entities = [HifzPlan::class, HifzProgress::class, KhatmaRoom::class], version = 1, exportSchema = false)
+@Database(
+    entities = [
+        HifzPlan::class,
+        HifzProgress::class,
+        KhatmaRoom::class,
+        CachedVerseEntity::class,
+        CachedTafsirEntity::class,
+        ReadingGoalEntity::class,
+        DailyDhikrBookmarkEntity::class
+    ],
+    version = 2,
+    exportSchema = false
+)
 abstract class QuranDatabase : RoomDatabase() {
     abstract fun hifzDao(): HifzDao
     abstract fun khatmaDao(): KhatmaDao
+    abstract fun quranCacheDao(): QuranCacheDao
+    abstract fun readingPlannerDao(): ReadingPlannerDao
+    abstract fun dailyDhikrDao(): DailyDhikrDao
 
     companion object {
         @Volatile

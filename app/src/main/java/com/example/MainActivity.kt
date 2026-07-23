@@ -31,6 +31,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
@@ -213,9 +216,12 @@ fun MainAppScreen(
             val isEng = viewModel.isEnglishLanguage
             val tabs = listOf(
                 NavigationItem(if (isEng) "Quran" else "المصحف", Icons.Default.Book, Icons.Outlined.Book),
-                NavigationItem(if (isEng) "Adhkar" else "الأذكار", Icons.Default.VolunteerActivism, Icons.Outlined.VolunteerActivism),
+                NavigationItem(if (isEng) "Prayer & Qibla" else "أوقات الصلاة والقبلة", Icons.Default.AccessTime, Icons.Outlined.AccessTime),
+                NavigationItem(if (isEng) "Daily Dhikr" else "ذكر اليوم", Icons.Default.VolunteerActivism, Icons.Outlined.VolunteerActivism),
+                NavigationItem(if (isEng) "Reading Planner" else "مخطط الختمة", Icons.Default.MenuBook, Icons.Outlined.MenuBook),
+                NavigationItem(if (isEng) "Adhkar" else "الأذكار", Icons.Default.SelfImprovement, Icons.Outlined.SelfImprovement),
                 NavigationItem(if (isEng) "Duas" else "الأدعية", Icons.Default.Favorite, Icons.Outlined.FavoriteBorder),
-                NavigationItem(if (isEng) "Hadith" else "الأحاديث", Icons.Default.MenuBook, Icons.Outlined.MenuBook),
+                NavigationItem(if (isEng) "Hadith" else "الأحاديث", Icons.Default.AutoStories, Icons.Outlined.AutoStories),
                 NavigationItem(if (isEng) "Recitation" else "معلم التلاوة", Icons.Default.Mic, Icons.Outlined.Mic),
                 NavigationItem(if (isEng) "Hifz Planner" else "مدرب الحفظ", Icons.Default.Alarm, Icons.Outlined.Alarm),
                 NavigationItem(if (isEng) "AI Tafsir" else "التدبر الذكي", Icons.Default.QuestionAnswer, Icons.Outlined.QuestionAnswer),
@@ -287,13 +293,16 @@ fun MainAppScreen(
             ) { targetTab ->
                 when (targetTab) {
                     0 -> MushafScreen(viewModel)
-                    1 -> AdhkarScreen(viewModel)
-                    2 -> DuaScreen(viewModel)
-                    3 -> HadithScreen(viewModel)
-                    4 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
-                    5 -> HifzPlannerScreen(viewModel)
-                    6 -> AITafsirChatScreen(viewModel)
-                    7 -> KhatmaRoomsScreen(viewModel)
+                    1 -> PrayerTimesAndQiblaScreen(viewModel)
+                    2 -> DailyDhikrScreen(viewModel)
+                    3 -> ReadingPlannerScreen(viewModel)
+                    4 -> AdhkarScreen(viewModel)
+                    5 -> DuaScreen(viewModel)
+                    6 -> HadithScreen(viewModel)
+                    7 -> AIRecitationAndSearchScreen(viewModel, onRequestPermission, onNavigateToMushaf = { currentTab = 0 })
+                    8 -> HifzPlannerScreen(viewModel)
+                    9 -> AITafsirChatScreen(viewModel)
+                    10 -> KhatmaRoomsScreen(viewModel)
                 }
             }
 
@@ -2554,6 +2563,1029 @@ fun KhatmaRoomCard(room: KhatmaRoom, onViewGridClick: () -> Unit) {
 }
 
 // ==========================================
+// SCREEN: أوقات الصلاة والقبلة (Prayer Times & Qibla)
+// ==========================================
+@Composable
+fun PrayerTimesAndQiblaScreen(viewModel: QuranViewModel) {
+    val context = LocalContext.current
+    val isEng = viewModel.isEnglishLanguage
+    val prayerData = viewModel.prayerTimesData
+    var selectedCityTab by remember { mutableStateOf(viewModel.selectedCityName) }
+
+    // Sensor for real-time Qibla compass
+    val deviceAzimuth by viewModel.deviceAzimuthDegree.collectAsState()
+    val hasSensorSupport by viewModel.hasSensorSupport.collectAsState()
+
+    DisposableEffect(Unit) {
+        viewModel.startQiblaSensor()
+        onDispose {
+            viewModel.stopQiblaSensor()
+        }
+    }
+
+    var showManualLocationDialog by remember { mutableStateOf(false) }
+    var isPlayingPreview by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // Location Banner Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Location",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (isEng) "Location & Timezone" else "الموقع والتوقيت المحلي",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                text = if (isEng) com.example.data.repository.PrayerTimesManager.defaultCities.find { it.nameArabic == selectedCityTab }?.nameEnglish ?: selectedCityTab else selectedCityTab,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
+                    Row {
+                        // Custom Location Button
+                        IconButton(onClick = { showManualLocationDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.EditLocation,
+                                contentDescription = "Manual Location",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        // Auto GPS Button
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable {
+                                viewModel.fetchLocationWithGPS(context) { success, msg ->
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.MyLocation, contentDescription = "GPS", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (isEng) "GPS" else "موقعي", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // City Selectors
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(com.example.data.repository.PrayerTimesManager.defaultCities) { city ->
+                        val isSelected = selectedCityTab == city.nameArabic
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                selectedCityTab = city.nameArabic
+                                viewModel.updateLocationAndPrayerTimes(city.latitude, city.longitude, city.nameArabic, context)
+                            },
+                            label = {
+                                Text(
+                                    text = if (isEng) city.nameEnglish else city.nameArabic,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Next Prayer Countdown Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isEng) "Next Upcoming Prayer" else "الصلاة القادمة المباركة",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = prayerData.nextPrayerName,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = prayerData.nextPrayerFormatted,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = if (isEng) "Remaining: ${prayerData.remainingTimeFormatted}" else "متبقي على الآذان: ${prayerData.remainingTimeFormatted}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Muezzin Voice & Pre-Prayer Warning Settings Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = if (isEng) "Adhan Muezzin Audio & Reminder Settings 🎙️" else "اختيار أصوات المؤذنين والتنبيه المبكر 🎙️",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Muezzin Selector
+                Text(
+                    text = if (isEng) "Select Preferred Muezzin Voice:" else "اختر صوت المؤذن المفضل للآذان:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.example.data.repository.PrayerNotificationHelper.muezzinVoices.forEach { voice ->
+                        val isSelected = viewModel.selectedMuezzinVoiceId == voice.id
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                )
+                                .clickable {
+                                    viewModel.selectedMuezzinVoiceId = voice.id
+                                    viewModel.scheduleBackgroundPrayerNotifications(context)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        viewModel.selectedMuezzinVoiceId = voice.id
+                                        viewModel.scheduleBackgroundPrayerNotifications(context)
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isEng) voice.nameEnglish else voice.nameArabic,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            if (isSelected) {
+                                TextButton(
+                                    onClick = {
+                                        if (isPlayingPreview) {
+                                            com.example.data.repository.PrayerNotificationHelper.stopPreviewAdhan()
+                                            isPlayingPreview = false
+                                        } else {
+                                            isPlayingPreview = true
+                                            com.example.data.repository.PrayerNotificationHelper.playPreviewAdhan(context, voice.audioUrl) {
+                                                isPlayingPreview = false
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPlayingPreview) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                        contentDescription = "Test Audio",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (isPlayingPreview) (if (isEng) "Stop" else "إيقاف") else (if (isEng) "Test Voice" else "تجربة الصوت"),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 5-minute Pre-Prayer Warning Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEng) "5-Minute Pre-Prayer Warning Alert ⏰" else "تنبيه اقتراب موعد الصلاة (قبل 5 دقائق) ⏰",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEng) "Triggers an audio notice 'Prayer is approaching in 5 mins' to prepare for wudu"
+                            else "إرسال تنبيه صوتي 'اقترب موعد الصلاة' قبل وقت الأذان بـ 5 دقائق للتهيؤ والوضوء",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    Switch(
+                        checked = viewModel.enablePrePrayerWarning,
+                        onCheckedChange = {
+                            viewModel.enablePrePrayerWarning = it
+                            viewModel.scheduleBackgroundPrayerNotifications(context)
+                            val msg = if (it) {
+                                if (isEng) "Pre-prayer warning enabled (5 mins)" else "تم تفعيل التنبيه المبكر (قبل 5 دقائق) ✨"
+                            } else {
+                                if (isEng) "Pre-prayer warning disabled" else "تم إيقاف التنبيه المبكر"
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Sensor Real-time Qibla Direction Compass Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isEng) "Real-time Qibla Sensor Compass 🧭" else "بوصلة اتجاه القبلة التفاعلية الحية 🧭",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (isEng) "Kaaba Bearing: ${prayerData.qiblaAngle.toInt()}° | Device Heading: ${deviceAzimuth.toInt()}°"
+                    else "اتجاه الكعبة المشرفة: ${prayerData.qiblaAngle.toInt()}° | اتجاه الجهاز الحالي: ${deviceAzimuth.toInt()}°",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
+                )
+
+                if (!hasSensorSupport) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (isEng) "(Using calculated geographic position - Compass sensor hardware unavailable)"
+                        else "(يتم استخدام الحساب الجغرافي الدقيق - حساس البوصلة غير متوفر)",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Rotating Sensor-Driven Compass
+                val needleAngle = prayerData.qiblaAngle - deviceAzimuth
+
+                Box(
+                    modifier = Modifier
+                        .size(190.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                        .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val center = Offset(size.width / 2, size.height / 2)
+                        val radius = size.width / 2 - 16
+
+                        drawCircle(
+                            color = Color.Gray.copy(alpha = 0.25f),
+                            radius = radius,
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+
+                        // Draw Kaaba indicator line
+                        val angleRad = Math.toRadians(needleAngle.toDouble() - 90)
+                        val endX = center.x + (radius - 12) * cos(angleRad).toFloat()
+                        val endY = center.y + (radius - 12) * sin(angleRad).toFloat()
+
+                        drawLine(
+                            color = Color(0xFF1B5E20),
+                            start = center,
+                            end = Offset(endX, endY),
+                            strokeWidth = 6.dp.toPx()
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🕋", fontSize = 30.sp)
+                        Text(
+                            text = "${prayerData.qiblaAngle.toInt()}°",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = if (isEng) "Distance: ${prayerData.distanceToKaabaKm} km" else "المسافة: ${prayerData.distanceToKaabaKm} كم",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Prayer Times List Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = if (isEng) "Daily Prayer Schedule & Notifications 🕌" else "جدول أوقات الصلاة اليومية والتذكيرات 🕌",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                prayerData.list.forEach { item ->
+                    val isEnabled = viewModel.prayerNotificationEnabledMap[item.nameEnglish] ?: true
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .background(
+                                if (item.isNext) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (item.isPassed) Icons.Default.CheckCircle else Icons.Default.AccessTime,
+                                contentDescription = item.nameEnglish,
+                                tint = if (item.isNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (isEng) item.nameEnglish else item.nameArabic,
+                                fontSize = 15.sp,
+                                fontWeight = if (item.isNext) FontWeight.Bold else FontWeight.Medium,
+                                color = if (item.isNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = item.timeFormatted,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = isEnabled,
+                                onCheckedChange = {
+                                    viewModel.togglePrayerNotification(item.nameEnglish, context)
+                                    val msg = if (isEnabled) {
+                                        if (isEng) "Disabled reminder for ${item.nameEnglish}" else "تم إيقاف تذكير صلاة ${item.nameArabic}"
+                                    } else {
+                                        if (isEng) "Enabled reminder for ${item.nameEnglish}" else "تم تفعيل تذكير صلاة ${item.nameArabic}"
+                                    }
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.scale(0.8f)
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                }
+            }
+        }
+    }
+
+    // Manual Custom Location Entry Dialog
+    if (showManualLocationDialog) {
+        var cityInput by remember { mutableStateOf(viewModel.selectedCityName) }
+        var latInput by remember { mutableStateOf(viewModel.selectedLat.toString()) }
+        var lngInput by remember { mutableStateOf(viewModel.selectedLng.toString()) }
+
+        Dialog(onDismissRequest = { showManualLocationDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        text = if (isEng) "Manual Location Input (Privacy Mode) 📍" else "إدخال الموقع يدوياً (وضع الخصوصية) 📍",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (isEng) "Input city name or custom latitude/longitude coordinates"
+                        else "قم بكتابة اسم مدينتك أو خطوط الطول والعرض للرصد الدقيق بدلاً من GPS",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedTextField(
+                        value = cityInput,
+                        onValueChange = { cityInput = it },
+                        label = { Text(if (isEng) "City Name" else "اسم المدينة") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = latInput,
+                            onValueChange = { latInput = it },
+                            label = { Text(if (isEng) "Latitude" else "خط العرض") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = lngInput,
+                            onValueChange = { lngInput = it },
+                            label = { Text(if (isEng) "Longitude" else "خط الطول") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showManualLocationDialog = false }) {
+                            Text(if (isEng) "Cancel" else "إلغاء")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val latParsed = latInput.toDoubleOrNull() ?: 21.4225
+                                val lngParsed = lngInput.toDoubleOrNull() ?: 39.8262
+                                viewModel.updateLocationAndPrayerTimes(latParsed, lngParsed, cityInput.ifBlank { "Custom City" }, context)
+                                showManualLocationDialog = false
+                                Toast.makeText(context, if (isEng) "Location updated ✨" else "تم حفظ موقعك المخصص بنجاح ✨", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(if (isEng) "Save Location" else "حفظ الموقع")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// SCREEN: ذكر اليوم النبوي (Daily Dhikr)
+// ==========================================
+@Composable
+fun DailyDhikrScreen(viewModel: QuranViewModel) {
+    val context = LocalContext.current
+    val isEng = viewModel.isEnglishLanguage
+    val dhikr = viewModel.todayDhikr
+    val isBookmarked = viewModel.isDailyDhikrBookmarked(dhikr.id)
+    val bookmarks by viewModel.dailyDhikrBookmarks.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // Header Banner Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isEng) "Daily Prophetic Supplication 📿" else "الذكر النبوي اليومي والورد المحصّن 📿",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isEng) "A new authentic Prophetic supplication every day, localized in English with reference & virtue"
+                        else "ذكر نبوي صحيح يتجدد يومياً ومترجم باللغة الإنجليزية مع بيان الفضل والمصدر من كتب السنة",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.VolunteerActivism,
+                    contentDescription = "Dhikr",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Main Today's Supplication Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        Text(
+                            text = if (isEng) "Today's Supplication ✨" else "ذكر اليوم المبارك ✨",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    IconButton(onClick = { viewModel.toggleDailyDhikrBookmark(dhikr.id) }) {
+                        Icon(
+                            imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = "Bookmark",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Arabic Text
+                Text(
+                    text = dhikr.textArabic,
+                    fontSize = 20.sp,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 34.sp,
+                    textAlign = TextAlign.Start,
+                    style = TextStyle(textDirection = TextDirection.ContentOrRtl),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // English Transliteration
+                Text(
+                    text = dhikr.textEnglishTransliteration,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // English Translation
+                Text(
+                    text = "« ${dhikr.textEnglishTranslation} »",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Virtue & Reference Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Lightbulb, contentDescription = "Virtue", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isEng) dhikr.virtueEnglish else dhikr.virtueArabic,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                lineHeight = 18.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = if (isEng) "Reference: ${dhikr.referenceEnglish}" else "المصدر: ${dhikr.referenceArabic}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Copy Action Button
+                Button(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Daily Dhikr", "${dhikr.textArabic}\n${dhikr.textEnglishTranslation}\nRef: ${dhikr.referenceEnglish}")
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, if (isEng) "Dhikr copied to clipboard ✨" else "تم نسخ الذكر المبارك إلى الحافظة بنجاح ✨", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isEng) "Copy Supplication" else "نسخ الذكر الشريف")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Bookmarked Supplications Section
+        Text(
+            text = if (isEng) "Bookmarked Supplications (${bookmarks.size}) 📌" else "الأذكار المحفوظة والمفضلة (${bookmarks.size}) 📌",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (bookmarks.isEmpty()) {
+            Text(
+                text = if (isEng) "No bookmarked supplications yet. Click the bookmark icon above to save your daily dhikr."
+                else "لا توجد أذكار محفوظة حالياً. اضغط على أيقونة الحفظ أعلاه لإضافة أذكارك المفضلة.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        } else {
+            bookmarks.forEach { bm ->
+                val bmDhikr = com.example.data.repository.DailyDhikrRepository.getDhikrById(bm.dhikrId)
+                if (bmDhikr != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = bmDhikr.textArabic,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = if (isEng) bmDhikr.referenceEnglish else bmDhikr.referenceArabic,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                            IconButton(onClick = { viewModel.toggleDailyDhikrBookmark(bm.dhikrId) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// SCREEN: مخطط ختم القرآن الكريم (Reading Planner)
+// ==========================================
+@Composable
+fun ReadingPlannerScreen(viewModel: QuranViewModel) {
+    val context = LocalContext.current
+    val isEng = viewModel.isEnglishLanguage
+    val goal by viewModel.readingGoal.collectAsState()
+
+    var targetDaysInput by remember { mutableStateOf("30") }
+
+    val totalPages = 604
+    val completedPages = goal?.pagesCompleted ?: 0
+    val targetDays = goal?.targetDays ?: 30
+    val progressPct = (completedPages.toFloat() / totalPages.toFloat()).coerceIn(0f, 1f)
+    val pagesPerDay = (totalPages.toFloat() / targetDays.toFloat()).toInt().coerceAtLeast(1)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // Banner Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isEng) "Quran Reading Planner 📖" else "مخطط ختم القرآن الكريم 📖",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isEng) "Set your goal for completing the Quran (Khatma) and track your daily progress"
+                        else "حدد الهدف الزمني لختم القرآن الكريم وتابع إنجازك اليومي وعدد الصفحات المتبقية بسهولة",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.MenuBook,
+                    contentDescription = "Planner",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Progress Dashboard Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isEng) "Khatma Progress Dashboard" else "لوحة متابعة تقدم الختمة",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Progress Bar
+                LinearProgressIndicator(
+                    progress = progressPct,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(CircleShape)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (isEng) "$completedPages / $totalPages Pages (${(progressPct * 100).toInt()}%)" else "$completedPages من $totalPages صفحة (${(progressPct * 100).toInt()}%)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isEng) "Target: $pagesPerDay pages/day" else "المطلوب: $pagesPerDay صفحة/يومياً",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Log Pages Action Buttons
+                Text(
+                    text = if (isEng) "Log Pages Read Today:" else "تسجيل قراءة صفحات جديدة اليوم:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.addCompletedPagesRead(1) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("+1 Page", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { viewModel.addCompletedPagesRead(5) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("+5 Pages", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { viewModel.addCompletedPagesRead(10) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("+10 Pages", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Configure New Goal Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = if (isEng) "Set Target Duration (Khatma Timeframe) 🎯" else "تحديد الهدف الزمني لختم القرآن 🎯",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(15, 30, 60, 90).forEach { days ->
+                        FilterChip(
+                            selected = targetDaysInput == days.toString(),
+                            onClick = {
+                                targetDaysInput = days.toString()
+                                viewModel.createOrUpdateReadingGoal(days)
+                                Toast.makeText(context, if (isEng) "Goal set for $days days ✨" else "تم تحديد هدف الختمة في $days يوماً ✨", Toast.LENGTH_SHORT).show()
+                            },
+                            label = { Text("$days Days", fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
 // HELPER DIALOGS & COMPONENTS
 // ==========================================
 @Composable
@@ -2722,7 +3754,7 @@ fun SettingsDialog(
     val isEng = viewModel.isEnglishLanguage
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
             modifier = Modifier
@@ -2736,20 +3768,218 @@ fun SettingsDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = if (isEng) "Reading & Recitation Settings" else "إعدادات القراءة والإنصات",
-                    fontSize = 16.sp,
+                    text = if (isEng) "App Settings & Preferences" else "إعدادات التطبيق والتفضيلات",
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Toggle 1: Force English Display Mode
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEng) "English-Only Mode 🌐" else "عرض باللغة الإنجليزية فقط 🌐",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEng) "Forces all Tafsir, supplications, navigation, and labels to display in English"
+                            else "تثبيت عرض التفسير والأذكار وواجهة التطبيق باللغة الإنجليزية بالكامل",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    Switch(
+                        checked = viewModel.isEnglishLanguage,
+                        onCheckedChange = { viewModel.isEnglishLanguage = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Toggle 2: Eye-Care Night Mode
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEng) "Eye-Care Night Mode 🌙" else "المظهر الداكن لحماية العين 🌙",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEng) "Reduces eye strain during nighttime Quran recitation"
+                            else "تفعيل المظهر الليلي الهادئ المريح للعينين أثناء القراءة الليلية",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    Switch(
+                        checked = viewModel.isNightMode,
+                        onCheckedChange = { viewModel.isNightMode = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Security & Play Integrity Section
+                var showSecurityReportDialog by remember { mutableStateOf(false) }
+                val context = androidx.compose.ui.platform.LocalContext.current
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Security",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isEng) "AI Security & Play Integrity" else "فحص الأمان المتقدم وسلامة التطبيق",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (isEng) "ProGuard/R8 Obfuscation enabled • Signature Integrity Checked"
+                            else "تم تفعيل حماية ProGuard/R8 والتحقق من سلامة التوقيع لمطابقة متطلبات المتجر",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { showSecurityReportDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isEng) "Run AI Security & Integrity Scan" else "تشغيل فحص الثغرات وسلامة التطبيق 🛡️", fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                if (showSecurityReportDialog) {
+                    val report = remember { com.example.data.security.AIVulnerabilityScanner.runSecurityScan(context) }
+                    Dialog(onDismissRequest = { showSecurityReportDialog = false }) {
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp)
+                            ) {
+                                Text(
+                                    text = if (isEng) "CI/CD Security & Integrity Scan 🛡️" else "تقرير الفحص الأمني وسلامة التطبيق 🛡️",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isEng) "Score: ${report.scorePercentage}% | ${report.statusSummaryEn}" else "درجة الأمان: ${report.scorePercentage}% | ${report.statusSummaryAr}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (report.scorePercentage >= 75) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Column(
+                                    modifier = Modifier.heightIn(max = 280.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    report.issuesFound.forEach { issue ->
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (issue.severity == com.example.data.security.SecuritySeverity.SECURE)
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                                else MaterialTheme.colorScheme.surfaceVariant
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(10.dp)) {
+                                                Text(
+                                                    text = if (isEng) issue.titleEn else issue.titleAr,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (issue.severity == com.example.data.security.SecuritySeverity.SECURE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = if (isEng) issue.descriptionEn else issue.descriptionAr,
+                                                    fontSize = 11.sp,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Button(
+                                    onClick = { showSecurityReportDialog = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(if (isEng) "Close Report" else "إغلاق التقرير")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
-                    text = if (isEng) "Select preferred reciter:" else "اختر القارئ المفضل للإنصات والتكرار:",
+                    text = if (isEng) "Select preferred Quran reciter:" else "اختر القارئ المفضل للإنصات والتكرار:",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.Start)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
