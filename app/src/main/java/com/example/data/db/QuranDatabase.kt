@@ -15,6 +15,7 @@ import com.example.data.model.DailyDhikrBookmarkEntity
 import com.example.data.model.HifzPlan
 import com.example.data.model.HifzProgress
 import com.example.data.model.KhatmaRoom
+import com.example.data.model.JuzHifzEntity
 import com.example.data.model.ReadingGoalEntity
 import com.example.data.model.SurahHifzEntity
 import com.example.data.model.VerseHifzEntity
@@ -22,6 +23,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SurahVerseHifzDao {
+    @Query("SELECT * FROM juz_hifz_status ORDER BY juzNumber ASC")
+    fun getAllJuzHifzStatus(): Flow<List<JuzHifzEntity>>
+
+    @Query("SELECT * FROM juz_hifz_status WHERE juzNumber = :juzNumber LIMIT 1")
+    suspend fun getJuzHifzStatus(juzNumber: Int): JuzHifzEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateJuzHifz(entity: JuzHifzEntity)
+
     @Query("SELECT * FROM surah_hifz_status ORDER BY surahId ASC")
     fun getAllSurahHifzStatus(): Flow<List<SurahHifzEntity>>
 
@@ -33,6 +43,9 @@ interface SurahVerseHifzDao {
 
     @Query("SELECT * FROM verse_hifz_status WHERE surahId = :surahId ORDER BY verseNumber ASC")
     fun getVerseHifzStatusForSurah(surahId: Int): Flow<List<VerseHifzEntity>>
+
+    @Query("SELECT * FROM verse_hifz_status WHERE juzNumber = :juzNumber ORDER BY surahId ASC, verseNumber ASC")
+    fun getVerseHifzStatusForJuz(juzNumber: Int): Flow<List<VerseHifzEntity>>
 
     @Query("SELECT * FROM verse_hifz_status WHERE verseKey = :verseKey LIMIT 1")
     suspend fun getVerseHifzStatus(verseKey: String): VerseHifzEntity?
@@ -140,10 +153,11 @@ interface KhatmaDao {
         CachedTafsirEntity::class,
         ReadingGoalEntity::class,
         DailyDhikrBookmarkEntity::class,
+        JuzHifzEntity::class,
         SurahHifzEntity::class,
         VerseHifzEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class QuranDatabase : RoomDatabase() {

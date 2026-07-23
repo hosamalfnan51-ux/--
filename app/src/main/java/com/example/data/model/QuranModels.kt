@@ -87,6 +87,15 @@ data class DailyDhikrBookmarkEntity(
     val dateBookmarked: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "juz_hifz_status")
+data class JuzHifzEntity(
+    @PrimaryKey val juzNumber: Int, // 1 to 30
+    val status: String = "Not Started", // "Not Started", "In Progress", "Completed"
+    val completedVersesCount: Int = 0,
+    val totalVersesCount: Int = 0,
+    val lastUpdated: Long = System.currentTimeMillis()
+)
+
 @Entity(tableName = "surah_hifz_status")
 data class SurahHifzEntity(
     @PrimaryKey val surahId: Int,
@@ -103,6 +112,7 @@ data class VerseHifzEntity(
     @PrimaryKey val verseKey: String, // e.g., "1:1"
     val surahId: Int,
     val verseNumber: Int,
+    val juzNumber: Int = 1,
     val status: String = "Not Started", // "Not Started", "In Progress", "Completed"
     val repetitionsCount: Int = 0,
     val lastReviewed: Long = System.currentTimeMillis()

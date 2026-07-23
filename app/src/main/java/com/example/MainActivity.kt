@@ -608,6 +608,16 @@ fun MushafScreen(viewModel: QuranViewModel) {
             }
         }
 
+        // Daily Reading & Memorization Progress Summary Card (Material Chart)
+        val readingGoalData by viewModel.readingGoal.collectAsState()
+        com.example.ui.components.MemorizationProgressCanvasChart(
+            readingGoal = readingGoalData,
+            isEnglish = isEng,
+            modifier = Modifier
+                .padding(bottom = 12.dp)
+                .testTag("home_screen_memorization_progress_chart")
+        )
+
         // Horizontally scrollable Surahs chip selector
         Text(
             text = if (viewModel.isEnglishLanguage) "Select Surah for Recitation & Reflection" else "اختر السورة الكريمة للتلاوة والتدبر",

@@ -86,6 +86,9 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private val surahVerseHifzDao = db.surahVerseHifzDao()
 
     // --- State Streams ---
+    val allJuzHifzStatus: StateFlow<List<com.example.data.model.JuzHifzEntity>> = surahVerseHifzDao.getAllJuzHifzStatus()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allSurahHifzStatus: StateFlow<List<com.example.data.model.SurahHifzEntity>> = surahVerseHifzDao.getAllSurahHifzStatus()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -892,7 +895,20 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- Surah and Verse Hifz Status DB Updates ---
+    // --- Juz, Surah and Verse Hifz Status DB Updates ---
+    fun updateJuzHifzStatus(juzNumber: Int, status: String, completed: Int, total: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            surahVerseHifzDao.insertOrUpdateJuzHifz(
+                com.example.data.model.JuzHifzEntity(
+                    juzNumber = juzNumber,
+                    status = status,
+                    completedVersesCount = completed,
+                    totalVersesCount = total
+                )
+            )
+        }
+    }
+
     fun updateSurahHifzStatus(surahId: Int, surahNameAr: String, surahNameEn: String, status: String, completed: Int, total: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             surahVerseHifzDao.insertOrUpdateSurahHifz(
