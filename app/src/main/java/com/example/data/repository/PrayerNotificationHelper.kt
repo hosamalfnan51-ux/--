@@ -27,12 +27,12 @@ object PrayerNotificationHelper {
     private const val CHANNEL_NAME = "أوقات الصلاة والتذكيرات / Prayer Reminders"
 
     val muezzinVoices = listOf(
-        MuezzinVoice("makkah", "الشيخ علي ملا (أذان الحرم المكي الشريف)", "Sheikh Ali Mulla (Makkah Adhan)", "https://download.quranicaudio.com/adhan/makkah.mp3", "مكة المكرمة"),
-        MuezzinVoice("madinah", "الشيخ عبد المجيد السريحي (أذان المسجد النبوي)", "Sheikh Abdul Majid Surhi (Madinah Adhan)", "https://download.quranicaudio.com/adhan/madinah.mp3", "المدينة المنورة"),
-        MuezzinVoice("alafasy", "الشيخ مشاري راشد العفاسي", "Sheikh Mishary Alafasy", "https://download.quranicaudio.com/adhan/alafasy.mp3", "دولة الكويت"),
-        MuezzinVoice("abdulbasit", "الشيخ عبد الباسط عبد الصمد", "Sheikh Abdul Basit", "https://download.quranicaudio.com/adhan/abdulbasit.mp3", "جمهورية مصر العربية"),
-        MuezzinVoice("mustafa_ismail", "الشيخ مصطفى إسماعيل", "Sheikh Mustafa Ismail", "https://download.quranicaudio.com/adhan/mustafa_ismail.mp3", "جمهورية مصر العربية"),
-        MuezzinVoice("minshawi", "الشيخ محمد صديق المنشاوي", "Sheikh Siddiq Al-Minshawi", "https://download.quranicaudio.com/quran/muhammad_siddeeq_al-minshawi/001.mp3", "مصر - تجويد مبارك")
+        MuezzinVoice("makkah", "الشيخ علي ملا (أذان الحرم المكي الشريف)", "Sheikh Ali Mulla (Makkah Adhan)", "https://www.islamcan.com/audio/adhan/azan1.mp3", "مكة المكرمة"),
+        MuezzinVoice("madinah", "الشيخ عبد المجيد السريحي (أذان المسجد النبوي)", "Sheikh Abdul Majid Surhi (Madinah Adhan)", "https://www.islamcan.com/audio/adhan/azan2.mp3", "المدينة المنورة"),
+        MuezzinVoice("alafasy", "الشيخ مشاري راشد العفاسي", "Sheikh Mishary Alafasy", "https://www.islamcan.com/audio/adhan/azan3.mp3", "دولة الكويت"),
+        MuezzinVoice("abdulbasit", "الشيخ عبد الباسط عبد الصمد", "Sheikh Abdul Basit", "https://www.islamcan.com/audio/adhan/azan4.mp3", "جمهورية مصر العربية"),
+        MuezzinVoice("mustafa_ismail", "الشيخ مصطفى إسماعيل", "Sheikh Mustafa Ismail", "https://www.islamcan.com/audio/adhan/azan5.mp3", "جمهورية مصر العربية"),
+        MuezzinVoice("minshawi", "الشيخ محمد صديق المنشاوي", "Sheikh Siddiq Al-Minshawi", "https://www.islamcan.com/audio/adhan/azan6.mp3", "مصر - تجويد مبارك")
     )
 
     private var previewPlayer: MediaPlayer? = null
