@@ -263,6 +263,30 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetReadingGoal() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentGoal = readingPlannerDao.getReadingGoal() ?: com.example.data.model.ReadingGoalEntity(
+                id = 1,
+                targetDays = 30,
+                startDate = System.currentTimeMillis(),
+                targetCompletionDate = System.currentTimeMillis() + 30 * 24L * 60 * 60 * 1000,
+                pagesCompleted = 0
+            )
+            val resetGoal = currentGoal.copy(
+                pagesCompleted = 0,
+                currentStreakDays = 0,
+                isCompleted = false,
+                lastReadDateTimestamp = System.currentTimeMillis()
+            )
+            readingPlannerDao.insertOrUpdateGoal(resetGoal)
+        }
+    }
+
+    fun clearSemanticSearch() {
+        semanticSearchResults = emptyList()
+        isSemanticSearchLoading = false
+    }
+
     // --- UI State Variables ---
     var selectedSurah by mutableStateOf<Surah?>(null)
         private set

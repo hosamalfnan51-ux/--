@@ -391,6 +391,223 @@ fun MushafScreen(viewModel: QuranViewModel) {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+        // ==========================================
+        // TOP MAIN SCREEN SEMANTIC SEARCH BAR (AI)
+        // ==========================================
+        var mainSearchQuery by remember { mutableStateOf("") }
+        val isEng = viewModel.isEnglishLanguage
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .testTag("main_screen_semantic_search_card"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "AI",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isEng) "Gemini AI Semantic Search" else "البحث الدلالي بالذكاء الاصطناعي",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    if (viewModel.semanticSearchResults.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                mainSearchQuery = ""
+                                viewModel.clearSemanticSearch()
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = mainSearchQuery,
+                    onValueChange = { mainSearchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("top_main_semantic_search_input"),
+                    placeholder = {
+                        Text(
+                            text = if (isEng) "Query Quran verses using natural language (e.g. 'Patience in hardship')..." else "ابحث عن آيات القرآن بالمعنى أو الموضوع (مثال: 'الصبر وقت الشدة')...",
+                            fontSize = 12.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        Row {
+                            if (mainSearchQuery.isNotBlank()) {
+                                IconButton(onClick = {
+                                    mainSearchQuery = ""
+                                    viewModel.clearSemanticSearch()
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear Input",
+                                        tint = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { viewModel.performSemanticSearch(mainSearchQuery) },
+                                modifier = Modifier.testTag("top_main_semantic_search_submit")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = "Submit Search",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { viewModel.performSemanticSearch(mainSearchQuery) }),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                // Quick Prompt Suggestion Chips
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    reverseLayout = true,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val quickPrompts = if (isEng) listOf(
+                        "Verses on inner peace",
+                        "Patience & trials",
+                        "Seeking knowledge",
+                        "Forgiveness & mercy"
+                    ) else listOf(
+                        "آيات الطمأنينة والسكينة",
+                        "الصبر ومواجهة الابتلاء",
+                        "فضل العلم والتدبر",
+                        "الرحمة والمغفرة"
+                    )
+                    items(quickPrompts) { prompt ->
+                        FilterChip(
+                            selected = false,
+                            onClick = {
+                                mainSearchQuery = prompt
+                                viewModel.performSemanticSearch(prompt)
+                            },
+                            label = { Text(prompt, fontSize = 10.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                labelColor = MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Semantic Search Loading / Results Panel on Main Screen
+        if (viewModel.isSemanticSearchLoading) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isEng) "Analyzing Quranic verses with Gemini AI..." else "جارٍ تحليل واستخراج الآيات بالذكاء الاصطناعي...",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        } else if (viewModel.semanticSearchResults.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEng) "Matched Verses (${viewModel.semanticSearchResults.size}):" else "الآيات المتطابقة دلالياً (${viewModel.semanticSearchResults.size}):",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    TextButton(onClick = { viewModel.clearSemanticSearch() }) {
+                        Text(if (isEng) "Close Results" else "إغلاق النتائج", fontSize = 11.sp)
+                    }
+                }
+
+                viewModel.semanticSearchResults.forEach { result ->
+                    SemanticSearchResultCard(
+                        result = result,
+                        isEnglish = isEng,
+                        onJumpClick = {
+                            viewModel.jumpToVerseInMushaf(result.surahId, result.verseNumber) { }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+
         // Horizontally scrollable Surahs chip selector
         Text(
             text = if (viewModel.isEnglishLanguage) "Select Surah for Recitation & Reflection" else "اختر السورة الكريمة للتلاوة والتدبر",
@@ -3436,12 +3653,34 @@ fun ReadingPlannerScreen(viewModel: QuranViewModel) {
     val goal by viewModel.readingGoal.collectAsState()
 
     var targetDaysInput by remember { mutableStateOf("30") }
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
 
     val totalPages = 604
     val completedPages = goal?.pagesCompleted ?: 0
     val targetDays = goal?.targetDays ?: 30
     val progressPct = (completedPages.toFloat() / totalPages.toFloat()).coerceIn(0f, 1f)
     val pagesPerDay = (totalPages.toFloat() / targetDays.toFloat()).toInt().coerceAtLeast(1)
+
+    if (showResetConfirmDialog) {
+        com.example.ui.components.ConfirmationDialog(
+            title = if (isEng) "Reset Memorization Progress?" else "إعادة ضبط تقدم الحفظ والختمة؟",
+            message = if (isEng)
+                "Are you sure you want to clear your memorization progress, streaks, and completed pages count? This action cannot be undone."
+            else
+                "هل أنت متأكد من إعادة ضبط وإلغاء تقدم الحفظ وأيام الإنجاز وعدد الصفحات المقروءة؟ لا يمكن التراجع عن هذا الإجراء.",
+            confirmButtonText = if (isEng) "Reset Data" else "إعادة الضبط",
+            dismissButtonText = if (isEng) "Cancel" else "إلغاء",
+            onConfirm = {
+                viewModel.resetReadingGoal()
+                Toast.makeText(
+                    context,
+                    if (isEng) "Memorization progress data reset successfully" else "تمت إعادة ضبط بيانات التقدم بنجاح",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onDismiss = { showResetConfirmDialog = false }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -3629,6 +3868,31 @@ fun ReadingPlannerScreen(viewModel: QuranViewModel) {
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Reset Progress Data Button triggering ConfirmationDialog
+        OutlinedButton(
+            onClick = { showResetConfirmDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("reset_memorization_progress_button"),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.RestartAlt,
+                contentDescription = "Reset Progress",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isEng) "Reset Memorization Progress Data" else "إعادة ضبط بيانات تقدم الحفظ والختمة",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

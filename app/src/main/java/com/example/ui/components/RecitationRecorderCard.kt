@@ -23,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -133,7 +134,8 @@ fun RecitationRecorderCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .testTag("waveform_visualizer"),
                 contentAlignment = Alignment.Center
             ) {
                 val amp = state.currentAmplitude
@@ -207,7 +209,8 @@ fun RecitationRecorderCard(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (state.isRecording) Color.Red else primaryColor
                     ),
-                    shape = RoundedCornerShape(24.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.testTag("recording_button")
                 ) {
                     Icon(
                         imageVector = if (state.isRecording) Icons.Default.Stop else Icons.Default.Mic,
