@@ -321,6 +321,13 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private var mediaRecorder: android.media.MediaRecorder? = null
     private var audioFile: java.io.File? = null
 
+    // --- DataStore Persistent App Settings ---
+    val settingsDataStore = com.example.data.preferences.SettingsDataStore(application.applicationContext)
+    var recitationSpeed by mutableStateOf(1.0f)
+    var fontScale by mutableStateOf(1.0f)
+    var autoScrollEnabled by mutableStateOf(true)
+    var tajweedColoringEnabled by mutableStateOf(true)
+
     // --- Reciter & Audio Controls State ---
     var selectedReciter by mutableStateOf("الشيخ مشاري العفاسي")
     var isNightMode by mutableStateOf(false)
@@ -393,6 +400,29 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     val currentPlanProgress = _currentPlanProgress.asStateFlow()
 
     init {
+        // Collect persistent preferences from DataStore
+        viewModelScope.launch {
+            settingsDataStore.recitationSpeed.collect { speed -> recitationSpeed = speed }
+        }
+        viewModelScope.launch {
+            settingsDataStore.isDarkMode.collect { dark -> isNightMode = dark }
+        }
+        viewModelScope.launch {
+            settingsDataStore.isEnglishLanguage.collect { eng -> isEnglishLanguage = eng }
+        }
+        viewModelScope.launch {
+            settingsDataStore.selectedReciter.collect { reciter -> selectedReciter = reciter }
+        }
+        viewModelScope.launch {
+            settingsDataStore.fontScale.collect { scale -> fontScale = scale }
+        }
+        viewModelScope.launch {
+            settingsDataStore.autoScrollEnabled.collect { auto -> autoScrollEnabled = auto }
+        }
+        viewModelScope.launch {
+            settingsDataStore.tajweedColoringEnabled.collect { taj -> tajweedColoringEnabled = taj }
+        }
+
         // Pre-populate database with some sample data if empty
         viewModelScope.launch(Dispatchers.IO) {
             // Seed a Hifz Plan if empty
@@ -498,6 +528,13 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 setDataSource(url)
                 setOnPreparedListener {
                     start()
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        try {
+                            playbackParams = playbackParams.setSpeed(recitationSpeed)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                     isAudioLoading = false
                     isAudioPlaying = true
                 }
@@ -550,6 +587,65 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
             e.printStackTrace()
         } finally {
             quranMediaPlayer = null
+        }
+    }
+
+    // --- Persistent DataStore Preference Setters ---
+    fun setAppRecitationSpeed(speed: Float) {
+        recitationSpeed = speed
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            quranMediaPlayer?.let { player ->
+                try {
+                    player.playbackParams = player.playbackParams.setSpeed(speed)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        viewModelScope.launch {
+            settingsDataStore.saveRecitationSpeed(speed)
+        }
+    }
+
+    fun setAppNightMode(dark: Boolean) {
+        isNightMode = dark
+        viewModelScope.launch {
+            settingsDataStore.saveIsDarkMode(dark)
+        }
+    }
+
+    fun setAppLanguage(english: Boolean) {
+        isEnglishLanguage = english
+        viewModelScope.launch {
+            settingsDataStore.saveIsEnglishLanguage(english)
+        }
+    }
+
+    fun setAppReciter(reciter: String) {
+        selectedReciter = reciter
+        viewModelScope.launch {
+            settingsDataStore.saveSelectedReciter(reciter)
+        }
+    }
+
+    fun setAppFontScale(scale: Float) {
+        fontScale = scale
+        viewModelScope.launch {
+            settingsDataStore.saveFontScale(scale)
+        }
+    }
+
+    fun setAppAutoScroll(enabled: Boolean) {
+        autoScrollEnabled = enabled
+        viewModelScope.launch {
+            settingsDataStore.saveAutoScroll(enabled)
+        }
+    }
+
+    fun setAppTajweedColoring(enabled: Boolean) {
+        tajweedColoringEnabled = enabled
+        viewModelScope.launch {
+            settingsDataStore.saveTajweedColoring(enabled)
         }
     }
 

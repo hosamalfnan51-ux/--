@@ -4308,7 +4308,7 @@ fun SettingsDialog(
 
                     Switch(
                         checked = viewModel.isEnglishLanguage,
-                        onCheckedChange = { viewModel.isEnglishLanguage = it }
+                        onCheckedChange = { viewModel.setAppLanguage(it) }
                     )
                 }
 
@@ -4339,13 +4339,138 @@ fun SettingsDialog(
 
                     Switch(
                         checked = viewModel.isNightMode,
-                        onCheckedChange = { viewModel.isNightMode = it }
+                        onCheckedChange = { viewModel.setAppNightMode(it) }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // Recitation Speed Selector (DataStore Persisted)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = if (isEng) "Recitation Playback Speed ⚡" else "سرعة التلاوة والصوتيات ⚡",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isEng) "Adjust audio playback speed persistently via DataStore" else "التحكم في سرعة تشغيل الصوتيات والتلاوة وحفظ الخيار بدقة",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val speedOptions = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                        speedOptions.forEach { speed ->
+                            FilterChip(
+                                selected = viewModel.recitationSpeed == speed,
+                                onClick = { viewModel.setAppRecitationSpeed(speed) },
+                                label = { Text("${speed}x", fontSize = 11.sp) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Font Scale / Size Selector (DataStore Persisted)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = if (isEng) "Quran Text Size 🔍" else "حجم خط النص القرآني 🔍",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val sizes = listOf(
+                            0.85f to if (isEng) "Small" else "صغير",
+                            1.0f to if (isEng) "Normal" else "متوسط",
+                            1.2f to if (isEng) "Large" else "كبير"
+                        )
+                        sizes.forEach { (scale, label) ->
+                            FilterChip(
+                                selected = viewModel.fontScale == scale,
+                                onClick = { viewModel.setAppFontScale(scale) },
+                                label = { Text(label, fontSize = 11.sp) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Toggle 3: Auto Scroll (DataStore Persisted)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEng) "Auto Scroll Verses 📜" else "التمرير التلقائي أثناء التلاوة 📜",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEng) "Automatically scroll to playing verse during audio playback"
+                            else "متابعة الآية الحالية تلقائياً أثناء تشغيل الصوت",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    Switch(
+                        checked = viewModel.autoScrollEnabled,
+                        onCheckedChange = { viewModel.setAppAutoScroll(it) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Toggle 4: Tajweed Rules Coloring (DataStore Persisted)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEng) "Tajweed Rules Highlights 🎨" else "تظليل أحكام التجويد ملونة 🎨",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEng) "Highlight Tajweed rules like Ghunnah, Qalqalah, and Ikhfa in text"
+                            else "إبراز أحكام الغنة والقلقلة والإخفاء بألوان تجويدية مميزة",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    Switch(
+                        checked = viewModel.tajweedColoringEnabled,
+                        onCheckedChange = { viewModel.setAppTajweedColoring(it) }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
