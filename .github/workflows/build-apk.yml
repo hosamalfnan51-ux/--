@@ -20,13 +20,8 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # --- الحل السحري: هذا السطر يقوم بإنشاء ملف الgradle المفقود تلقائياً ---
-    - name: Fix Gradle Wrapper
-      run: |
-        gradle wrapper --gradle-version 8.0
+    - name: Install and Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
-    - name: Make Gradle executable
-      run: chmod +x ./gradlew
-
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace
+    - name: Build Debug APK using Gradle directly
+      run: gradle assembleDebug --stacktrace
