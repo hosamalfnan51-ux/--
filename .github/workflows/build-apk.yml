@@ -66,3 +66,7 @@ jobs:
             output_apk/QuranWay-v1.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- uses: actions/setup-java@v4
+  with:
+    distribution: 'temurin'
+    java-version: '17'
