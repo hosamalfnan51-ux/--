@@ -615,6 +615,49 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun cacheSurahAndTafsirForOffline(surah: Surah, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val verses = QuranRepository.getVerses(surah.id)
+                if (verses.isNotEmpty()) {
+                    quranCacheDao.insertVerses(verses.map {
+                        com.example.data.model.CachedVerseEntity(
+                            surahId = surah.id,
+                            verseNumber = it.verseNumber,
+                            textUthmani = it.textUthmani,
+                            textIndopak = it.textIndopak,
+                            translation = it.translation,
+                            audioUrl = it.audioUrl
+                        )
+                    })
+                    verses.take(5).forEach { v ->
+                        val cacheId = "tafsir_${surah.nameArabic}_${v.verseNumber}_${if (isEnglishLanguage) "en" else "ar"}"
+                        if (quranCacheDao.getCachedTafsir(cacheId) == null) {
+                            val fallback = getAuthenticFallbackTafsir(surah.nameArabic, v.verseNumber, v.textUthmani)
+                            quranCacheDao.insertTafsir(
+                                com.example.data.model.CachedTafsirEntity(
+                                    id = cacheId,
+                                    surahId = surah.id,
+                                    verseNumber = v.verseNumber,
+                                    surahName = surah.nameArabic,
+                                    verseText = v.textUthmani,
+                                    tafsirText = fallback,
+                                    isEnglish = isEnglishLanguage
+                                )
+                            )
+                        }
+                    }
+                    onComplete(true)
+                } else {
+                    onComplete(false)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onComplete(false)
+            }
+        }
+    }
+
     fun playAudio(verse: Verse) {
         val surah = selectedSurah ?: return
         if (playingVerseId == verse.id) {

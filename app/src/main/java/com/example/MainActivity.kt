@@ -2395,6 +2395,7 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
     val chatMessages by viewModel.chatMessages.collectAsState()
     var inputQuery by remember { mutableStateOf("") }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val isEng = viewModel.isEnglishLanguage
 
     // Scroll to bottom when message log changes
     LaunchedEffect(chatMessages.size) {
@@ -2409,26 +2410,95 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "مساعد التدبر الحواري (AI)",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = "تفسير موثوق ومفصل للآيات والكلمات بالذكاء الاصطناعي",
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.secondary
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = if (isEng) "AI Tafsir Assistant & Study Chat" else "مساعد التدبر الحواري (AI)",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = if (isEng) "Authentic Quranic verse explanations powered by Gemini AI" else "تفسير موثوق ومفصل للآيات والكلمات بالذكاء الاصطناعي",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudDone,
+                        contentDescription = "Room Cache",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isEng) "Room Cache Active" else "التخزين المحلي نشط",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Selected Verse Context Indicator Card (if a verse is selected)
+        viewModel.selectedVerseForBottomSheet?.let { verse ->
+            val surah = viewModel.selectedSurah
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEng) "Active Verse Context: Surah ${surah?.nameEnglish ?: ""} (${verse.verseNumber})" else "الآية المحددة للتدبر: سورة ${surah?.nameArabic ?: ""} (آية ${verse.verseNumber})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = verse.textUthmani,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
 
         // Chat Log
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .testTag("chat_message_list"),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(chatMessages) { msg ->
@@ -2451,9 +2521,16 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "مساعد التدبر يتأمل معاني التفسير...", fontSize = 11.sp)
+                                Text(
+                                    text = if (isEng) "Tafsir Assistant analyzing verse insights..." else "مساعد التدبر يتأمل معاني التفسير...",
+                                    fontSize = 11.sp
+                                )
                             }
                         }
                     }
@@ -2469,9 +2546,13 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            reverseLayout = true
+            reverseLayout = !isEng
         ) {
-            val presets = listOf(
+            val presets = if (isEng) listOf(
+                "Meaning of 'Al-Samad' in Surah Al-Ikhlas?",
+                "Context of revelation for Surah Al-Mulk?",
+                "What is meant by 'Al-Falaq'?"
+            ) else listOf(
                 "ما معنى الصمد في سورة الإخلاص؟",
                 "ما سبب نزول سورة الملك؟",
                 "ما المقصود بالفلق؟"
@@ -2491,7 +2572,7 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Query input
+        // Query input area
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -2508,7 +2589,7 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Send,
-                    contentDescription = "إرسال",
+                    contentDescription = if (isEng) "Send" else "إرسال",
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -2518,16 +2599,23 @@ fun AITafsirChatScreen(viewModel: QuranViewModel) {
             OutlinedTextField(
                 value = inputQuery,
                 onValueChange = { inputQuery = it },
-                placeholder = { Text("اطرح تساؤلاً حول معاني آية أو سورة...") },
+                placeholder = {
+                    Text(
+                        if (isEng) "Ask a question about a Quranic verse or topic..." else "اطرح تساؤلاً حول معاني آية أو سورة...",
+                        fontSize = 12.sp
+                    )
+                },
                 modifier = Modifier
                     .weight(1f)
+                    .testTag("chat_input_field")
                     .testTag("chat_input"),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = {
                     viewModel.sendChatMessage(inputQuery)
                     inputQuery = ""
                 }),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
         }
     }
