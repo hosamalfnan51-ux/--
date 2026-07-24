@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">QuranWay</string>
+    <string name="tajweed_coach_title">AI Tajweed Coach</string>
+    <string name="mushaf_title">Holy Quran</string>
+    <string name="khatma_title">Group Khatma</string>
+    <string name="semantic_search_title">Semantic Search</string>
+    <string name="hifz_title">Hifz Tracker</string>
+    <string name="settings_title">Settings</string>
+</resources>

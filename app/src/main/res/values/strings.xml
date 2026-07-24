@@ -1,3 +1,9 @@
 <resources>
-    <string name="app_name">طريق القرآن</string>
+    <string name="app_name">طريق القرآن - QuranWay</string>
+    <string name="tajweed_coach_title">معلم التجويد الذكي</string>
+    <string name="mushaf_title">المصحف الشريف</string>
+    <string name="khatma_title">الختمة الجماعية</string>
+    <string name="semantic_search_title">البحث الدلالي</string>
+    <string name="hifz_title">متابع الحفظ</string>
+    <string name="settings_title">الإعدادات</string>
 </resources>
