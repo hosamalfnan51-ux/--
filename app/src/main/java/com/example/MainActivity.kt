@@ -128,6 +128,12 @@ fun MainAppScreen(
 
     // Navigation and Eye-Care/Night Mode
     val isNightMode = viewModel.isNightMode
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        com.example.data.repository.ReadingGoalReminderWorker.scheduleReadingGoalReminder(context)
+        com.example.data.repository.ReadingGoalReminderWorker.updateLastInteractionTime(context, viewModel.isEnglishLanguage)
+    }
 
     MyApplicationTheme(darkTheme = isNightMode) {
         Scaffold(
