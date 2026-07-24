@@ -1483,213 +1483,151 @@ fun AIRecitationAndSearchScreen(
     onRequestPermission: () -> Unit,
     onNavigateToMushaf: () -> Unit = {}
 ) {
+    var activeSubTab by remember { mutableStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCoachVerseText by remember { mutableStateOf("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ") }
-    var showTajweedLegend by remember { mutableStateOf(false) }
     val isEng = viewModel.isEnglishLanguage
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Feature 1: البحث الدلالي الذكي
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = if (isEng) "AI Semantic Quran Search" else "البحث الدلالي الذكي (AI)",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.End)
-                    )
-                    Text(
-                        text = if (isEng) "Search by concept or theme such as 'Verses of Peace', 'Patience', or 'Knowledge'" else "ابحث بالمعنى أو الفكرة مثل 'آيات الطمأنينة' أو 'الصبر'",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.align(Alignment.End),
-                        textAlign = TextAlign.Right
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("semantic_search_input"),
-                        placeholder = { Text(if (isEng) "Enter topic (e.g. Virtue of knowledge)" else "أدخل موضوع البحث (مثال: فضل العلم)") },
-                        trailingIcon = {
-                            IconButton(onClick = { viewModel.performSemanticSearch(searchQuery) }) {
-                                Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { viewModel.performSemanticSearch(searchQuery) }),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                searchQuery = if (isEng) "Verses bringing inner peace and tranquility" else "آيات تبث الطمأنينة"
-                                viewModel.performSemanticSearch(searchQuery)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isEng) "Tranquility Verses" else "آيات الطمأنينة", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                        }
-                        Button(
-                            onClick = {
-                                searchQuery = if (isEng) "Patience and overcoming trials" else "الصبر ومواجهة الابتلاء"
-                                viewModel.performSemanticSearch(searchQuery)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isEng) "Patience & Trials" else "الصبر والابتلاء", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                        }
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(
+            selectedTabIndex = activeSubTab,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary
+        ) {
+            Tab(
+                selected = activeSubTab == 0,
+                onClick = { activeSubTab = 0 },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isEng) "Tajweed Coach" else "معلم التجويد الذكي", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-            }
-        }
-
-        // Semantic Search results display
-        if (viewModel.isSemanticSearchLoading) {
-            item {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        } else if (viewModel.semanticSearchResults.isNotEmpty()) {
-            item {
-                Text(
-                    text = if (isEng) "AI Semantic Search Results:" else "نتائج البحث الدلالي الذكي:",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-
-            items(viewModel.semanticSearchResults) { result ->
-                SemanticSearchResultCard(
-                    result = result,
-                    isEnglish = isEng,
-                    onJumpClick = {
-                        viewModel.jumpToVerseInMushaf(result.surahId, result.verseNumber) {
-                            onNavigateToMushaf()
-                        }
+            )
+            Tab(
+                selected = activeSubTab == 1,
+                onClick = { activeSubTab = 1 },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isEng) "Semantic Search" else "البحث الدلالي", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                )
-            }
+                }
+            )
         }
 
-        // Feature 2: معلم التلاوة الذكي
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        if (activeSubTab == 0) {
+            com.example.ui.screens.TajweedCoachScreen(isEnglish = isEng)
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = if (isEng) "AI Tajweed & Recitation Coach" else "معلم التلاوة الذكي (Coach)",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.End)
-                    )
-                    Text(
-                        text = if (isEng) "Recite into your microphone to get instant real-time AI Tajweed feedback" else "اقرأ بصوتك وسيقوم الذكاء الاصطناعي برصد أحكام التجويد ومخارج الحروف فوراً",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.align(Alignment.End),
-                        textAlign = TextAlign.Right
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Text of the selected verse for coaching
+                // Feature 1: البحث الدلالي الذكي
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Text(
-                            text = selectedCoachVerseText,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Custom Verses selection for coaching
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = if (isEng) "Select verse to practice:" else "اختر الآية الكريمة للتجربة:", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
-                    }
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        reverseLayout = true
-                    ) {
-                        val demoVerses = listOf(
-                            "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-                            "قُلْ هُوَ اللَّهُ أَحَدٌ",
-                            "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ"
-                        )
-                        items(demoVerses) { txt ->
-                            FilterChip(
-                                selected = selectedCoachVerseText == txt,
-                                onClick = { selectedCoachVerseText = txt },
-                                label = { Text(txt, fontSize = 11.sp) }
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = if (isEng) "AI Semantic Quran Search" else "البحث الدلالي الذكي (AI)",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.align(Alignment.End)
                             )
+                            Text(
+                                text = if (isEng) "Search by concept or theme such as 'Verses of Peace', 'Patience', or 'Knowledge'" else "ابحث بالمعنى أو الفكرة مثل 'آيات الطمأنينة' أو 'الصبر'",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.align(Alignment.End),
+                                textAlign = TextAlign.Right
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("semantic_search_input"),
+                                placeholder = { Text(if (isEng) "Enter topic (e.g. Virtue of knowledge)" else "أدخل موضوع البحث (مثال: فضل العلم)") },
+                                trailingIcon = {
+                                    IconButton(onClick = { viewModel.performSemanticSearch(searchQuery) }) {
+                                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { viewModel.performSemanticSearch(searchQuery) }),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        searchQuery = if (isEng) "Verses bringing inner peace and tranquility" else "آيات تبث الطمأنينة"
+                                        viewModel.performSemanticSearch(searchQuery)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(if (isEng) "Tranquility Verses" else "آيات الطمأنينة", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                }
+                                Button(
+                                    onClick = {
+                                        searchQuery = if (isEng) "Patience and overcoming trials" else "الصبر ومواجهة الابتلاء"
+                                        viewModel.performSemanticSearch(searchQuery)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(if (isEng) "Patience & Trials" else "الصبر والابتلاء", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Real Native Recording Card Component with Waveform & Controls
-                    com.example.ui.components.RecitationRecorderCard(
-                        verseText = selectedCoachVerseText,
-                        isEnglish = isEng,
-                        onEvaluateRecitation = {
-                            viewModel.stopRecitationRecordingAndEvaluate(selectedCoachVerseText)
+                // Semantic Search results display
+                if (viewModel.isSemanticSearchLoading) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
-                    )
+                    }
+                } else if (viewModel.semanticSearchResults.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = if (isEng) "AI Semantic Search Results:" else "نتائج البحث الدلالي الذكي:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
 
-                    // Display Recitation Analysis Evaluation
-                    viewModel.recitationEvaluation?.let { evaluation ->
-                        Spacer(modifier = Modifier.height(16.dp))
-                        RecitationEvaluationResultCard(evaluation)
+                    items(viewModel.semanticSearchResults) { result ->
+                        SemanticSearchResultCard(
+                            result = result,
+                            isEnglish = isEng,
+                            onJumpClick = {
+                                viewModel.jumpToVerseInMushaf(result.surahId, result.verseNumber) {
+                                    onNavigateToMushaf()
+                                }
+                            }
+                        )
                     }
                 }
             }
