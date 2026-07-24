@@ -1901,6 +1901,8 @@ fun AnimatedWaveform() {
 fun HifzPlannerScreen(viewModel: QuranViewModel) {
     val plans by viewModel.hifzPlans.collectAsState()
     val allProgress by viewModel.allProgress.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isEng = viewModel.isEnglishLanguage
     
     val totalMemorized = plans.sumOf { maxOf(0, it.currentProgressAyah - it.startAyah + 1) }
     val masteredCount = allProgress.count { it.status == 2 }
@@ -2007,6 +2009,66 @@ fun HifzPlannerScreen(viewModel: QuranViewModel) {
                             Text(text = "حفظ 📖", fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(text = totalMemorized.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val textReport = com.example.data.repository.HifzExporter.generateTextReport(plans, allProgress, isEng)
+                                com.example.data.repository.HifzExporter.shareTextReport(context, textReport, isEng)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_text_report_button"),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Text Export",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isEng) "Export Text" else "تصدير نصي 📄",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val pdfFile = com.example.data.repository.HifzExporter.exportPdfReport(context, plans, allProgress, isEng)
+                                if (pdfFile != null) {
+                                    com.example.data.repository.HifzExporter.sharePdfReport(context, pdfFile, isEng)
+                                } else {
+                                    Toast.makeText(context, if (isEng) "Failed to export PDF" else "تعذر تصدير ملف PDF", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_pdf_report_button"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = "PDF Export",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isEng) "Export PDF" else "تصدير PDF 📕",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
