@@ -1,72 +1,32 @@
-name: Build Android APK & Release
+name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
-      - master
-    tags:
-      - 'v*'
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
-    name: Build QuranWay APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+    # --- الحل السحري: هذا السطر يقوم بإنشاء ملف الgradle المفقود تلقائياً ---
+    - name: Fix Gradle Wrapper
+      run: |
+        gradle wrapper --gradle-version 8.0
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+    - name: Make Gradle executable
+      run: chmod +x ./gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Rename APK for Easy Identification
-        run: |
-          mkdir -p output_apk
-          cp app/build/outputs/apk/debug/app-debug.apk output_apk/QuranWay-v1.0.apk
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: QuranWay-v1.0-APK
-          path: output_apk/QuranWay-v1.0.apk
-          retention-days: 30
-
-      - name: Create GitHub Release (on Tag or Workflow Dispatch)
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
-        with:
-          name: QuranWay Release ${{ github.ref_name }}
-          body: |
-            ### 📱 تطبيق طريق القرآن (QuranWay) - الإصدار المعتمد
-            
-            يمكنك تحميل ملف الـ APK المباشر وتثبيته على أي هاتف أندرويد (مثل سامسونج).
-            
-            #### الميزات المتوفرة في هذا الإصدار:
-            - 🎙️ **معلم التلاوة والتجويد الذكي** بالذكاء الاصطناعي
-            - 🔍 **البحث الدلالي بالمواضيع والمفاهيم**
-            - 📖 **المصحف الشريف التفاعلي والتفسير**
-            - 📿 **حصن المسلم والأذكار اليومية المكتملة**
-            - ⚙️ **حفظ الإعدادات والتفضيلات بـ Jetpack DataStore**
-          files: |
-            output_apk/QuranWay-v1.0.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-- uses: actions/setup-java@v4
-  with:
-    distribution: 'temurin'
-    java-version: '17'
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace
