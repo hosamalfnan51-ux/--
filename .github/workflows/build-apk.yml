@@ -18,18 +18,17 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        distribution: 'zulu'
+        distribution: 'temurin'
+        cache: 'gradle'
 
-    - name: Fix Gradle Wrapper
+    - name: Fix and Force Gradle Wrapper
       run: |
         rm -f gradle/wrapper/gradle-wrapper.jar
+        mkdir -p gradle/wrapper
         curl -Lo gradle/wrapper/gradle-wrapper.jar https://github.com
-
-    - name: Generate Debug Keystore
-      run: keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
