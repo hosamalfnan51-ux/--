@@ -20,7 +20,7 @@ jobs:
         java-version: '17'
         distribution: 'zulu'
 
-    - name: Fix and Regenerate Gradle Wrapper JAR
+    - name: Fix Gradle Wrapper
       run: |
         rm -f gradle/wrapper/gradle-wrapper.jar
         curl -Lo gradle/wrapper/gradle-wrapper.jar https://github.com
