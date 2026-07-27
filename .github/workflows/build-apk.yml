@@ -20,13 +20,16 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
+    - name: Install and Setup Gradle
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: 8.5
+
+    - name: Regenerate Fresh Gradle Wrapper
+      run: gradle wrapper --gradle-version 8.5
 
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
