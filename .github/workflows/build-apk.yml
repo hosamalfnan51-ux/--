@@ -28,7 +28,38 @@ jobs:
     - name: Generate Dummy Google Services JSON
       run: |
         mkdir -p app
-        echo '{}' > app/google-services.json
+        cat <<EOF > app/google-services.json
+        {
+          "project_info": {
+            "project_number": "123456789012",
+            "firebase_url": "https://firebaseio.com",
+            "project_id": "dummy-project-id",
+            "storage_bucket": "://appspot.com"
+          },
+          "client": [
+            {
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:1234567890abcdef",
+                "android_client_info": {
+                  "package_name": "com.aistudio.quranway.gbtryp"
+                }
+              },
+              "oauth_client": [],
+              "api_key": [
+                {
+                  "current_key": "AIzaSyDummyKey-1234567890abcdefghijklm"
+                }
+              ],
+              "services": {
+                "appinvite_service": {
+                  "other_platform_oauth_client": []
+                }
+              }
+            }
+          ],
+          "configuration_version": "3"
+        }
+        EOF
 
     - name: Generate Debug Keystore File
       run: keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
