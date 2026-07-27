@@ -25,5 +25,8 @@ jobs:
       with:
         gradle-version: 8.7
 
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
+
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
